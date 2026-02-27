@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>me-shi Gallery</title>
+  <style>
+    :root { --border:#e7e7e7; --muted:#666; --bg:#fafafa; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 18px; background: #fff; color:#111; }
+    header { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
+    h1 { font-size: 20px; margin: 0; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .controls {
+      margin-top: 12px; padding: 12px; border:1px solid var(--border); border-radius: 12px;
+      display:flex; gap:12px; flex-wrap:wrap; align-items:end; background: var(--bg);
+    }
+    label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input, button {
+      font-size: 14px; padding: 9px 10px; border-radius: 10px; border:1px solid var(--border);
+      background:#fff;
+    }
+    button { cursor:pointer; background:#111; color:#fff; border-color:#111; }
+    button.secondary { background:#fff; color:#111; }
+    .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
+    .day { margin-top: 18px; }
+    .day h2 { font-size: 16px; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .item {
+      display:grid; grid-template-columns: 1fr 280px 1fr;
+      gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border);
+      align-items: start;
+    }
+    .card { border:1px solid var(--border); border-radius: 12px; padding: 10px; background:#fff; }
+    .card .title { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    img {
+      width: 100%; height:auto; border-radius: 10px; background:#f3f3f3; display:block;
+    }
+    .meta { display:flex; flex-direction:column; gap:8px; }
+    .jobid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color:#333; word-break: break-all; }
+    .created { font-size: 12px; color: var(--muted); word-break: break-all; }
+    .fav { font-size: 16px; font-weight: 700; line-height: 1.35; }
+    .small { font-size: 12px; color: var(--muted); }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .pill { font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius: 999px; background:#fff; }
+    .error { white-space: pre-wrap; background:#fff3f3; border:1px solid #ffd2d2; padding: 10px; border-radius: 12px; margin-top: 10px; }
+    @media (max-width: 980px) {
+      .item { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>me-shi Gallery</h1>
+    <div class="muted">before（元画像） / favorite（入力テキスト） / after（生成画像）</div>
+  </header>
+
+  <div class="controls">
+    <div>
+      <label>since（UTCのISO）</label>
+      <input id="since" size="30" value="2026-02-22T00:00:00%2B00:00" />
+      <div class="muted">例: 2026-02-22T00:00:00%2B00:00（%2B は + の意味）</div>
+    </div>
+    <div>
+      <label>limit</label>
+      <input id="limit" size="6" value="200" />
+    </div>
+    <div class="row">
+      <button id="load">読み込み</button>
+      <button id="today" class="secondary">今日（JST）0:00以降</button>
+    </div>
+    <div style="flex:1"></div>
+    <div>
+      <label>検索（favorite / job_id）</label>
+      <input id="filter" size="22" placeholder="例: ラーメン / abc123" />
+    </div>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="root"></div>
+
+  <script>
+    const API_URL = "https://1x7wkzlgv2.execute-api.ap-northeast-1.amazonaws.com/prd/gallery";
+
+    const elSince = document.getElementById("since");
+    const elLimit = document.getElementById("limit");
+    const elFilter = document.getElementById("filter");
+    const elLoad = document.getElementById("load");
+    const elToday = document.getElementById("today");
+    const elStatus = document.getElementById("status");
+    const root = document.getElementById("root");
+
+    function escapeHtml(s) {
+      return (s ?? "").toString()
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    function jstStartOfTodayToSinceParam() {
+      // JSTの今日0:00をUTC ISOにして、URLクエリ用に %2B00:00 形式へ
+      const now = new Date();
+      // JST = UTC+9
+      const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const y = jst.getUTCFullYear();
+      const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(jst.getUTCDate()).padStart(2, "0");
+      // JST 00:00 = UTC 前日 15:00
+      const jstMidnight = new Date(Date.UTC(y, jst.getUTCMonth(), jst.getUTCDate(), 0, 0, 0));
+      const utc = new Date(jstMidnight.getTime() - 9 * 60 * 60 * 1000);
+
+      const iso = utc.toISOString().replace(".000Z", "+00:00"); // "YYYY-MM-DDTHH:MM:SS+00:00"
+      return encodeURIComponent(iso); // + を %2B に
+    }
+
+    function applyFilter(data, q) {
+      q = (q ?? "").trim().toLowerCase();
+      if (!q) return data;
+
+      const days = [];
+      for (const day of (data.days || [])) {
+        const items = (day.items || []).filter(it => {
+          const a = (it.favorite_thing || "").toLowerCase();
+          const b = (it.job_id || "").toLowerCase();
+          return a.includes(q) || b.includes(q);
+        });
+        if (items.length) days.push({ date: day.date, items });
+      }
+      return { ...data, days, count: days.reduce((acc, d) => acc + d.items.length, 0) };
+    }
+
+    function render(data) {
+      root.innerHTML = "";
+      const total = data?.count ?? 0;
+      elStatus.textContent = `表示件数: ${total}`;
+
+      if (!total) {
+        root.innerHTML = `<div class="muted">該当データがありません（since / filter を変えてみてください）</div>`;
+        return;
+      }
+
+      for (const day of (data.days || [])) {
+        const dayDiv = document.createElement("div");
+        dayDiv.className = "day";
+        dayDiv.innerHTML = `<h2>${escapeHtml(day.date)} <span class="pill">JST</span> <span class="pill">${day.items.length}件</span></h2>`;
+
+        for (const it of (day.items || [])) {
+          const before = it.before_url
+            ? `<img loading="lazy" src="${it.before_url}" alt="before">`
+            : `<div class="small">before画像なし</div>`;
+
+          const after = it.after_url
+            ? `<img loading="lazy" src="${it.after_url}" alt="after">`
+            : `<div class="small">after画像なし</div>`;
+
+          const item = document.createElement("div");
+          item.className = "item";
+          item.innerHTML = `
+            <div class="card">
+              <div class="title">before（元画像）</div>
+              ${before}
+            </div>
+
+            <div class="card meta">
+              <div class="title">input（好きなもの）</div>
+              <div class="jobid">${escapeHtml(it.job_id)}</div>
+              <div class="created">${escapeHtml(it.created_at)}</div>
+              <div class="fav">${escapeHtml(it.favorite_thing || "")}</div>
+            </div>
+
+            <div class="card">
+              <div class="title">after（生成画像）</div>
+              ${after}
+            </div>
+          `;
+          dayDiv.appendChild(item);
+        }
+
+        root.appendChild(dayDiv);
+      }
+    }
+
+    async function load() {
+      const sinceRaw = (elSince.value || "").trim();
+      const limit = (elLimit.value || "200").trim();
+      const filterQ = (elFilter.value || "").trim();
+
+      if (!sinceRaw) {
+        elStatus.textContent = "since を入力してください";
+        return;
+      }
+
+      const url = `${API_URL}?since=${sinceRaw}&limit=${encodeURIComponent(limit)}`;
+      elStatus.textContent = "読み込み中...";
+      root.innerHTML = "";
+
+      try {
+        const res = await fetch(url, { method: "GET" });
+        if (!res.ok) {
+          const txt = await res.text();
+          elStatus.textContent = `エラー: ${res.status}`;
+          root.innerHTML = `<div class="error">${escapeHtml(txt)}</div>`;
+          return;
+        }
+        const data = await res.json();
+        const filtered = applyFilter(data, filterQ);
+        render(filtered);
+      } catch (e) {
+        elStatus.textContent = "通信エラー";
+        root.innerHTML = `<div class="error">${escapeHtml(String(e))}</div>`;
+      }
+    }
+
+    elLoad.addEventListener("click", load);
+    elFilter.addEventListener("input", () => load());
+    elToday.addEventListener("click", () => {
+      elSince.value = jstStartOfTodayToSinceParam();
+      load();
+    });
+
+    // 初回ロード
+    load();
+  </script>
+</body>
+</html>
