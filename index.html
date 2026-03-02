@@ -45,6 +45,13 @@
     @media (max-width: 980px) {
       .item { grid-template-columns: 1fr; }
     }
+    /* 追加/調整分だけ */
+    .controls .group { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    .hint { font-size:12px; color: var(--muted); margin-top:6px; line-height:1.4; }
+    .select, .datetime { min-width: 220px; }
+    .limit { width: 90px; }
+    .btnrow { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .divider { width:1px; height:42px; background: var(--border); margin: 0 4px; }
   </style>
 </head>
 <body>
@@ -54,23 +61,38 @@
   </header>
 
   <div class="controls">
-    <div>
-      <label>since（UTCのISO）</label>
-      <input id="since" size="30" value="2026-02-22T00:00:00%2B00:00" />
-      <div class="muted">例: 2026-02-22T00:00:00%2B00:00（%2B は + の意味）</div>
+    <div class="group">
+      <div>
+        <label>表示期間（JST）</label>
+        <input id="sinceJst" class="datetime" type="datetime-local" />
+        <div class="hint">ここで指定した日時「以降」のデータを読み込みます（日本時間）</div>
+      </div>
+  
+      <div class="btnrow" style="margin-bottom:2px;">
+        <button id="presetToday" class="secondary">今日 0:00〜</button>
+        <button id="preset24h" class="secondary">過去24時間</button>
+        <button id="preset7d" class="secondary">過去7日</button>
+      </div>
+  
+      <div class="divider"></div>
+  
+      <div>
+        <label>最大取得件数</label>
+        <input id="limit" class="limit" value="200" />
+        <div class="hint">多いほど表示が重くなります</div>
+      </div>
+  
+      <div class="btnrow" style="margin-bottom:2px;">
+        <button id="load">読み込み</button>
+      </div>
     </div>
-    <div>
-      <label>limit</label>
-      <input id="limit" size="6" value="200" />
-    </div>
-    <div class="row">
-      <button id="load">読み込み</button>
-      <button id="today" class="secondary">今日（JST）0:00以降</button>
-    </div>
+  
     <div style="flex:1"></div>
+  
     <div>
-      <label>検索（favorite / job_id）</label>
-      <input id="filter" size="22" placeholder="例: ラーメン / abc123" />
+      <label>絞り込み（favorite / job_id）</label>
+      <input id="filter" size="26" placeholder="例: パンケーキ / 3428ccf..." />
+      <div class="hint">※読み込み済みデータを画面内で絞り込みます（通信しません）</div>
     </div>
   </div>
 
@@ -79,77 +101,112 @@
 
   <script>
     const API_URL = "https://1x7wkzlgv2.execute-api.ap-northeast-1.amazonaws.com/prd/gallery";
-
-    const elSince = document.getElementById("since");
+  
+    const elSinceJst = document.getElementById("sinceJst");
     const elLimit = document.getElementById("limit");
     const elFilter = document.getElementById("filter");
     const elLoad = document.getElementById("load");
-    const elToday = document.getElementById("today");
+    const elPresetToday = document.getElementById("presetToday");
+    const elPreset24h = document.getElementById("preset24h");
+    const elPreset7d = document.getElementById("preset7d");
     const elStatus = document.getElementById("status");
     const root = document.getElementById("root");
-
+  
+    let lastData = null;          // 直近取得データ（これを検索で絞り込む）
+    let inflight = null;          // AbortController
+    let filterTimer = null;       // debounce用
+  
     function escapeHtml(s) {
       return (s ?? "").toString()
         .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
         .replaceAll('"',"&quot;").replaceAll("'","&#039;");
     }
-
-    function jstStartOfTodayToSinceParam() {
-      // JSTの今日0:00をUTC ISOにして、URLクエリ用に %2B00:00 形式へ
-      const now = new Date();
-      // JST = UTC+9
-      const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      const y = jst.getUTCFullYear();
-      const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
-      const d = String(jst.getUTCDate()).padStart(2, "0");
-      // JST 00:00 = UTC 前日 15:00
-      const jstMidnight = new Date(Date.UTC(y, jst.getUTCMonth(), jst.getUTCDate(), 0, 0, 0));
-      const utc = new Date(jstMidnight.getTime() - 9 * 60 * 60 * 1000);
-
-      const iso = utc.toISOString().replace(".000Z", "+00:00"); // "YYYY-MM-DDTHH:MM:SS+00:00"
-      return encodeURIComponent(iso); // + を %2B に
+  
+    function toUtcIsoForApiFromJstDatetimeLocal(value) {
+      // value: "YYYY-MM-DDTHH:MM"（datetime-local）
+      // それを JST として扱い、UTCの ISO（+00:00）にして返す
+      if (!value) return null;
+  
+      const [datePart, timePart] = value.split("T");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm] = timePart.split(":").map(Number);
+  
+      // 「JSTの y-m-d hh:mm」をUTCに直す：UTC = JST - 9h
+      const utcMillis = Date.UTC(y, m - 1, d, hh - 9, mm, 0);
+      const utc = new Date(utcMillis);
+  
+      // API側が "+00:00" を期待している形に寄せる
+      return utc.toISOString().replace(".000Z", "+00:00");
     }
-
+  
+    function setPresetFromNow(minutesAgo) {
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const target = new Date(jstNow.getTime() - minutesAgo * 60 * 1000);
+  
+      const y = target.getUTCFullYear();
+      const m = String(target.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(target.getUTCDate()).padStart(2, "0");
+      const hh = String(target.getUTCHours()).padStart(2, "0");
+      const mm = String(target.getUTCMinutes()).padStart(2, "0");
+  
+      elSinceJst.value = `${y}-${m}-${d}T${hh}:${mm}`;
+    }
+  
+    function setPresetTodayMidnight() {
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const y = jstNow.getUTCFullYear();
+      const m = String(jstNow.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(jstNow.getUTCDate()).padStart(2, "0");
+      elSinceJst.value = `${y}-${m}-${d}T00:00`;
+    }
+  
+    function normalize(s) {
+      // 日本語でもOKな「ゆるめ正規化」：前後空白除去 + 小文字化
+      return (s ?? "").toString().trim().toLowerCase();
+    }
+  
     function applyFilter(data, q) {
-      q = (q ?? "").trim().toLowerCase();
+      q = normalize(q);
       if (!q) return data;
-
+  
       const days = [];
       for (const day of (data.days || [])) {
         const items = (day.items || []).filter(it => {
-          const a = (it.favorite_thing || "").toLowerCase();
-          const b = (it.job_id || "").toLowerCase();
+          const a = normalize(it.favorite_thing || "");
+          const b = normalize(it.job_id || "");
           return a.includes(q) || b.includes(q);
         });
         if (items.length) days.push({ date: day.date, items });
       }
       return { ...data, days, count: days.reduce((acc, d) => acc + d.items.length, 0) };
     }
-
+  
     function render(data) {
       root.innerHTML = "";
       const total = data?.count ?? 0;
       elStatus.textContent = `表示件数: ${total}`;
-
+  
       if (!total) {
-        root.innerHTML = `<div class="muted">該当データがありません（since / filter を変えてみてください）</div>`;
+        root.innerHTML = `<div class="muted">該当データがありません（期間を広げる / 絞り込みを消す など試してください）</div>`;
         return;
       }
-
+  
       for (const day of (data.days || [])) {
         const dayDiv = document.createElement("div");
         dayDiv.className = "day";
         dayDiv.innerHTML = `<h2>${escapeHtml(day.date)} <span class="pill">JST</span> <span class="pill">${day.items.length}件</span></h2>`;
-
+  
         for (const it of (day.items || [])) {
           const before = it.before_url
             ? `<img loading="lazy" src="${it.before_url}" alt="before">`
             : `<div class="small">before画像なし</div>`;
-
+  
           const after = it.after_url
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="small">after画像なし</div>`;
-
+  
           const item = document.createElement("div");
           item.className = "item";
           item.innerHTML = `
@@ -157,14 +214,14 @@
               <div class="title">before（元画像）</div>
               ${before}
             </div>
-
+  
             <div class="card meta">
               <div class="title">input（好きなもの）</div>
               <div class="jobid">${escapeHtml(it.job_id)}</div>
               <div class="created">${escapeHtml(it.created_at)}</div>
               <div class="fav">${escapeHtml(it.favorite_thing || "")}</div>
             </div>
-
+  
             <div class="card">
               <div class="title">after（生成画像）</div>
               ${after}
@@ -172,51 +229,72 @@
           `;
           dayDiv.appendChild(item);
         }
-
         root.appendChild(dayDiv);
       }
     }
-
-    async function load() {
-      const sinceRaw = (elSince.value || "").trim();
+  
+    async function fetchData() {
+      const sinceIsoUtc = toUtcIsoForApiFromJstDatetimeLocal(elSinceJst.value);
       const limit = (elLimit.value || "200").trim();
-      const filterQ = (elFilter.value || "").trim();
-
-      if (!sinceRaw) {
-        elStatus.textContent = "since を入力してください";
+  
+      if (!sinceIsoUtc) {
+        elStatus.textContent = "表示期間（JST）を入力してください";
         return;
       }
-
-      const url = `${API_URL}?since=${sinceRaw}&limit=${encodeURIComponent(limit)}`;
+  
+      // 多重通信をキャンセル
+      if (inflight) inflight.abort();
+      inflight = new AbortController();
+  
+      const params = new URLSearchParams();
+      params.set("since", sinceIsoUtc);  // URLSearchParamsが勝手にエンコード（+ もOK）
+      params.set("limit", limit);
+  
+      const url = `${API_URL}?${params.toString()}`;
+  
       elStatus.textContent = "読み込み中...";
       root.innerHTML = "";
-
+  
       try {
-        const res = await fetch(url, { method: "GET" });
+        const res = await fetch(url, { method: "GET", signal: inflight.signal });
         if (!res.ok) {
           const txt = await res.text();
           elStatus.textContent = `エラー: ${res.status}`;
           root.innerHTML = `<div class="error">${escapeHtml(txt)}</div>`;
           return;
         }
-        const data = await res.json();
-        const filtered = applyFilter(data, filterQ);
+        lastData = await res.json();
+        const filtered = applyFilter(lastData, elFilter.value);
         render(filtered);
       } catch (e) {
+        if (String(e.name) === "AbortError") return; // キャンセルは無視
         elStatus.textContent = "通信エラー";
         root.innerHTML = `<div class="error">${escapeHtml(String(e))}</div>`;
       }
     }
-
-    elLoad.addEventListener("click", load);
-    elFilter.addEventListener("input", () => load());
-    elToday.addEventListener("click", () => {
-      elSince.value = jstStartOfTodayToSinceParam();
-      load();
+  
+    function rerenderByFilter() {
+      if (!lastData) return;
+      const filtered = applyFilter(lastData, elFilter.value);
+      render(filtered);
+    }
+  
+    // イベント
+    elLoad.addEventListener("click", fetchData);
+  
+    elFilter.addEventListener("input", () => {
+      // 入力途中でガチャガチャしないよう軽くデバウンス
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(rerenderByFilter, 150);
     });
-
-    // 初回ロード
-    load();
+  
+    elPresetToday.addEventListener("click", () => { setPresetTodayMidnight(); fetchData(); });
+    elPreset24h.addEventListener("click", () => { setPresetFromNow(24 * 60); fetchData(); });
+    elPreset7d.addEventListener("click", () => { setPresetFromNow(7 * 24 * 60); fetchData(); });
+  
+    // 初期値：今日0:00（JST）を入れて初回ロード
+    setPresetTodayMidnight();
+    fetchData();
   </script>
 </body>
 </html>
