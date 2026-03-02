@@ -4,247 +4,571 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>me-shi Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root { --border:#e7e7e7; --muted:#666; --bg:#fafafa; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 18px; background: #fff; color:#111; }
-    header { display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
-    h1 { font-size: 20px; margin: 0; }
-    .muted { color: var(--muted); font-size: 12px; }
+    :root {
+      --rose-50: #fff1f2;
+      --rose-100: #ffe4e6;
+      --rose-200: #fecdd3;
+      --rose-300: #fda4af;
+      --rose-500: #f43f5e;
+      --rose-600: #e11d48;
+      --rose-700: #be123c;
+      --amber-50: #fffbeb;
+      --amber-100: #fef3c7;
+      --amber-800: #92400e;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --border: #fecdd3;
+      --muted: #9ca3af;
+      --header-h: 64px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      margin: 0;
+      background: #fffafb;
+      color: var(--gray-800);
+      padding-top: var(--header-h);
+    }
+
+    /* ===== STICKY HEADER ===== */
+    .sticky-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      z-index: 50;
+      background: #f5d0d7;
+      border-bottom: 1px solid rgba(251,113,133,0.25);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .sticky-header-inner {
+      height: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--gray-800);
+    }
+    .header-sub {
+      font-size: 0.75rem;
+      color: var(--rose-700);
+      margin-left: 4px;
+    }
+
+    /* ===== MAIN WRAP ===== */
+    .page-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
+
+    /* ===== CONTROLS CARD ===== */
     .controls {
-      margin-top: 12px; padding: 12px; border:1px solid var(--border); border-radius: 12px;
-      display:flex; gap:12px; flex-wrap:wrap; align-items:end; background: var(--bg);
+      background: #fff;
+      border: 1px solid var(--rose-100);
+      border-radius: 1.5rem;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 8px rgba(244,63,94,0.06);
     }
-    label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-    input, button {
-      font-size: 14px; padding: 9px 10px; border-radius: 10px; border:1px solid var(--border);
-      background:#fff;
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-end;
     }
-    button { cursor:pointer; background:#111; color:#fff; border-color:#111; }
-    /* プリセットボタンの「押されてる」状態 */
-    button.secondary.active {
-      background: #111;
+    .controls-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .divider-v {
+      width: 1px;
+      height: 44px;
+      background: var(--rose-100);
+      margin: 0 4px;
+      align-self: flex-end;
+      margin-bottom: 2px;
+    }
+    label.field-label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--rose-700);
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+    }
+    .hint {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.45;
+    }
+
+    input[type="datetime-local"],
+    input[type="text"],
+    input[type="number"] {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1.5px solid var(--rose-200);
+      background: var(--rose-50);
+      color: var(--gray-800);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    input[type="datetime-local"]:focus,
+    input[type="text"]:focus {
+      border-color: var(--rose-500);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(244,63,94,0.1);
+    }
+    input.w-datetime { min-width: 210px; }
+    input.w-limit { width: 90px; }
+    input.w-filter { min-width: 220px; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--rose-500);
       color: #fff;
-      border-color: #111;
+      border-color: var(--rose-500);
+      box-shadow: 0 2px 8px rgba(244,63,94,0.25);
     }
-    /* ついで：押した瞬間のフィードバック */
-    button.secondary:active {
-      transform: translateY(1px);
+    .btn-primary:hover {
+      background: var(--rose-600);
+      border-color: var(--rose-600);
+      transform: scale(1.02);
     }
-    .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
-    .day { margin-top: 18px; }
-    .day h2 { font-size: 16px; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .btn-secondary {
+      background: #fff;
+      color: var(--rose-700);
+      border-color: var(--rose-200);
+    }
+    .btn-secondary:hover {
+      background: var(--rose-50);
+      border-color: var(--rose-300);
+    }
+    /* ===== ACTIVE PRESET STATE ===== */
+    .btn-secondary.active {
+      background: var(--rose-500);
+      color: #fff;
+      border-color: var(--rose-500);
+      box-shadow: 0 2px 8px rgba(244,63,94,0.25);
+    }
+    .btn-secondary.active:hover {
+      background: var(--rose-600);
+      border-color: var(--rose-600);
+    }
+
+    /* ===== STATUS ===== */
+    .status-bar {
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .status-text {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border: 1.5px solid var(--rose-200);
+      border-radius: 999px;
+      color: var(--rose-700);
+      background: var(--rose-50);
+    }
+
+    /* ===== DAY SECTIONS ===== */
+    .day {
+      margin-bottom: 28px;
+    }
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      border-bottom: 2px solid var(--rose-100);
+    }
+    .day-header h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--gray-800);
+    }
+
+    /* ===== ITEM GRID ===== */
     .item {
-      display:grid; grid-template-columns: 1fr 280px 1fr;
-      gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border);
-      align-items: start;
+      display: grid;
+      grid-template-columns: 1fr 260px 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
     }
-    .card { border:1px solid var(--border); border-radius: 12px; padding: 10px; background:#fff; }
-    .card .title { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+    .card {
+      background: #fff;
+      border: 1.5px solid var(--rose-100);
+      border-radius: 1.25rem;
+      padding: 14px;
+      box-shadow: 0 1px 6px rgba(244,63,94,0.05);
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 4px 16px rgba(244,63,94,0.1);
+    }
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--rose-500);
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
     img {
-      width: 100%; height:auto; border-radius: 10px; background:#f3f3f3; display:block;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      background: var(--gray-100);
+      display: block;
     }
-    .meta { display:flex; flex-direction:column; gap:8px; }
-    .jobid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color:#333; word-break: break-all; }
-    .created { font-size: 12px; color: var(--muted); word-break: break-all; }
-    .fav { font-size: 16px; font-weight: 700; line-height: 1.35; }
-    .small { font-size: 12px; color: var(--muted); }
-    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .pill { font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius: 999px; background:#fff; }
-    .error { white-space: pre-wrap; background:#fff3f3; border:1px solid #ffd2d2; padding: 10px; border-radius: 12px; margin-top: 10px; }
-    @media (max-width: 980px) {
+
+    /* ===== META CARD ===== */
+    .meta-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .jobid {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      color: var(--gray-500);
+      word-break: break-all;
+      background: var(--gray-50);
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+    }
+    .created {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .fav-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      line-height: 1.35;
+      background: var(--rose-50);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--rose-100);
+    }
+    .fav-text::before {
+      content: "❤️ ";
+    }
+    .no-image {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* ===== ERROR ===== */
+    .error-box {
+      background: #fff3f3;
+      border: 1.5px solid #ffd2d2;
+      padding: 14px 18px;
+      border-radius: 1rem;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      color: #b91c1c;
+    }
+    .empty-msg {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 48px 0;
+    }
+
+    /* ===== LOADING SPINNER ===== */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 0;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--rose-200);
+      border-top-color: var(--rose-500);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--rose-600);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
       .item { grid-template-columns: 1fr; }
+      .controls-row { flex-direction: column; align-items: stretch; }
+      .divider-v { display: none; }
     }
-    /* 追加/調整分だけ */
-    .controls .group { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
-    .hint { font-size:12px; color: var(--muted); margin-top:6px; line-height:1.4; }
-    .select, .datetime { min-width: 220px; }
-    .limit { width: 90px; }
-    .btnrow { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .divider { width:1px; height:42px; background: var(--border); margin: 0 4px; }
+    @media (max-width: 500px) {
+      .page-wrap { padding: 16px 12px 40px; }
+      .controls { padding: 16px; border-radius: 1.25rem; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>me-shi Gallery</h1>
-    <div class="muted">before（元画像） / favorite（入力テキスト） / after（生成画像）</div>
+
+  <!-- Sticky Header -->
+  <header class="sticky-header">
+    <div class="sticky-header-inner">
+      <div>
+        <span class="header-title">🐺 me-shi Gallery</span>
+        <span class="header-sub">before / input / after</span>
+      </div>
+    </div>
   </header>
 
-  <div class="controls">
-    <div class="group">
-      <div>
-        <label>表示期間（JST）</label>
-        <input id="sinceJst" class="datetime" type="datetime-local" />
-        <div class="hint">ここで指定した日時「以降」のデータを読み込みます（日本時間）</div>
-      </div>
-  
-      <div class="btnrow" style="margin-bottom:2px;">
-        <button id="presetToday" class="secondary">今日 0:00〜</button>
-        <button id="preset24h" class="secondary">過去24時間</button>
-        <button id="preset7d" class="secondary">過去7日</button>
-      </div>
-  
-      <div class="divider"></div>
-  
-      <div>
-        <label>最大取得件数</label>
-        <input id="limit" class="limit" value="200" />
-        <div class="hint">多いほど表示が重くなります</div>
-      </div>
-  
-      <div class="btnrow" style="margin-bottom:2px;">
-        <button id="load">読み込み</button>
-      </div>
-    </div>
-  
-    <div style="flex:1"></div>
-  
-    <div>
-      <label>絞り込み（favorite / job_id）</label>
-      <input id="filter" size="26" placeholder="例: パンケーキ / 3428ccf..." />
-      <div class="hint">※読み込み済みデータを画面内で絞り込みます（通信しません）</div>
-    </div>
-  </div>
+  <div class="page-wrap">
 
-  <div id="status" class="status"></div>
-  <div id="root"></div>
+    <!-- Controls -->
+    <div class="controls">
+      <div class="controls-row">
+        <!-- Date range -->
+        <div>
+          <label class="field-label">表示期間（JST）</label>
+          <input id="sinceJst" class="w-datetime" type="datetime-local" />
+          <div class="hint">指定した日時「以降」のデータを表示します</div>
+        </div>
+
+        <!-- Preset buttons -->
+        <div>
+          <label class="field-label">クイック選択</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="presetToday" class="btn btn-secondary">今日 0:00〜</button>
+            <button id="preset24h" class="btn btn-secondary">過去24時間</button>
+            <button id="preset7d" class="btn btn-secondary">過去7日</button>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Limit -->
+        <div>
+          <label class="field-label">最大取得件数</label>
+          <input id="limit" class="w-limit" type="number" value="200" />
+          <div class="hint">多いほど重くなります</div>
+        </div>
+
+        <!-- Load button -->
+        <div style="margin-bottom:2px;">
+          <button id="load" class="btn btn-primary">読み込み</button>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Filter -->
+        <div style="flex:1;min-width:200px;">
+          <label class="field-label">絞り込み（favorite / job_id）</label>
+          <input id="filter" class="w-filter" type="text" placeholder="例: パンケーキ / 3428ccf..." style="width:100%;" />
+          <div class="hint">読み込み済みデータを画面内で絞り込みます（通信しません）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span id="status" class="status-text">期間を選択して「読み込み」を押してください</span>
+    </div>
+
+    <!-- Content -->
+    <div id="root"></div>
+
+  </div>
 
   <script>
     const API_URL = "https://1x7wkzlgv2.execute-api.ap-northeast-1.amazonaws.com/prd/gallery";
-  
-    const elSinceJst = document.getElementById("sinceJst");
-    const elLimit = document.getElementById("limit");
-    const elFilter = document.getElementById("filter");
-    const elLoad = document.getElementById("load");
-    const elPresetToday = document.getElementById("presetToday");
-    const presetButtons = [elPresetToday, elPreset24h, elPreset7d];
-    const elPreset24h = document.getElementById("preset24h");
-    const elPreset7d = document.getElementById("preset7d");
-    const elStatus = document.getElementById("status");
-    const root = document.getElementById("root");
-  
-    let lastData = null;          // 直近取得データ（これを検索で絞り込む）
-    let inflight = null;          // AbortController
-    let filterTimer = null;       // debounce用
-  
+
+    const elSinceJst  = document.getElementById("sinceJst");
+    const elLimit     = document.getElementById("limit");
+    const elFilter    = document.getElementById("filter");
+    const elLoad      = document.getElementById("load");
+    const elToday     = document.getElementById("presetToday");
+    const el24h       = document.getElementById("preset24h");
+    const el7d        = document.getElementById("preset7d");
+    const elStatus    = document.getElementById("status");
+    const root        = document.getElementById("root");
+
+    let lastData      = null;
+    let inflight      = null;
+    let filterTimer   = null;
+    let activePreset  = null; // 'today' | '24h' | '7d' | null
+
+    const presetBtns = { today: elToday, "24h": el24h, "7d": el7d };
+
+    function setActivePreset(key) {
+      activePreset = key;
+      Object.entries(presetBtns).forEach(([k, btn]) => {
+        if (k === key) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+
+    function clearActivePreset() {
+      activePreset = null;
+      Object.values(presetBtns).forEach(btn => btn.classList.remove("active"));
+    }
+
+    // Clear active state when user manually edits the datetime
+    elSinceJst.addEventListener("input", clearActivePreset);
+
     function escapeHtml(s) {
       return (s ?? "").toString()
         .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
         .replaceAll('"',"&quot;").replaceAll("'","&#039;");
     }
-  
-    function toUtcIsoForApiFromJstDatetimeLocal(value) {
-      // value: "YYYY-MM-DDTHH:MM"（datetime-local）
-      // それを JST として扱い、UTCの ISO（+00:00）にして返す
+
+    function toUtcIso(value) {
       if (!value) return null;
-  
       const [datePart, timePart] = value.split("T");
-      const [y, m, d] = datePart.split("-").map(Number);
-      const [hh, mm] = timePart.split(":").map(Number);
-  
-      // 「JSTの y-m-d hh:mm」をUTCに直す：UTC = JST - 9h
-      const utcMillis = Date.UTC(y, m - 1, d, hh - 9, mm, 0);
-      const utc = new Date(utcMillis);
-  
-      // API側が "+00:00" を期待している形に寄せる
+      const [y,m,d] = datePart.split("-").map(Number);
+      const [hh,mm] = timePart.split(":").map(Number);
+      const utc = new Date(Date.UTC(y, m-1, d, hh-9, mm, 0));
       return utc.toISOString().replace(".000Z", "+00:00");
     }
-  
+
     function setPresetFromNow(minutesAgo) {
-      const now = new Date();
-      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      const target = new Date(jstNow.getTime() - minutesAgo * 60 * 1000);
-  
-      const y = target.getUTCFullYear();
-      const m = String(target.getUTCMonth() + 1).padStart(2, "0");
-      const d = String(target.getUTCDate()).padStart(2, "0");
-      const hh = String(target.getUTCHours()).padStart(2, "0");
-      const mm = String(target.getUTCMinutes()).padStart(2, "0");
-  
-      elSinceJst.value = `${y}-${m}-${d}T${hh}:${mm}`;
+      const jstNow = new Date(Date.now() + 9*60*60*1000);
+      const target = new Date(jstNow.getTime() - minutesAgo*60*1000);
+      const pad = n => String(n).padStart(2,"0");
+      elSinceJst.value = `${target.getUTCFullYear()}-${pad(target.getUTCMonth()+1)}-${pad(target.getUTCDate())}T${pad(target.getUTCHours())}:${pad(target.getUTCMinutes())}`;
     }
 
-    elSinceJst.addEventListener("input", () => {
-      // プリセットの日時から外れた＝手で変更した、という扱いにする
-      setActivePreset(null);
-    });
-  
     function setPresetTodayMidnight() {
-      const now = new Date();
-      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-      const y = jstNow.getUTCFullYear();
-      const m = String(jstNow.getUTCMonth() + 1).padStart(2, "0");
-      const d = String(jstNow.getUTCDate()).padStart(2, "0");
-      elSinceJst.value = `${y}-${m}-${d}T00:00`;
+      const jstNow = new Date(Date.now() + 9*60*60*1000);
+      const pad = n => String(n).padStart(2,"0");
+      elSinceJst.value = `${jstNow.getUTCFullYear()}-${pad(jstNow.getUTCMonth()+1)}-${pad(jstNow.getUTCDate())}T00:00`;
     }
-  
+
     function normalize(s) {
-      // 日本語でもOKな「ゆるめ正規化」：前後空白除去 + 小文字化
       return (s ?? "").toString().trim().toLowerCase();
     }
 
-    function setActivePreset(btnOrNull) {
-      for (const b of presetButtons) b.classList.remove("active");
-      if (btnOrNull) btnOrNull.classList.add("active");
-    }
-  
     function applyFilter(data, q) {
       q = normalize(q);
       if (!q) return data;
-  
       const days = [];
       for (const day of (data.days || [])) {
-        const items = (day.items || []).filter(it => {
-          const a = normalize(it.favorite_thing || "");
-          const b = normalize(it.job_id || "");
-          return a.includes(q) || b.includes(q);
-        });
+        const items = (day.items || []).filter(it =>
+          normalize(it.favorite_thing || "").includes(q) ||
+          normalize(it.job_id || "").includes(q)
+        );
         if (items.length) days.push({ date: day.date, items });
       }
-      return { ...data, days, count: days.reduce((acc, d) => acc + d.items.length, 0) };
+      return { ...data, days, count: days.reduce((a,d)=>a+d.items.length,0) };
     }
-  
+
+    function showLoading() {
+      root.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <span class="loading-text">読み込み中...</span>
+        </div>`;
+    }
+
     function render(data) {
       root.innerHTML = "";
       const total = data?.count ?? 0;
-      elStatus.textContent = `表示件数: ${total}`;
-  
+
+      elStatus.innerHTML = total
+        ? `<span class="status-text">表示件数：</span><span class="pill">${total} 件</span>`
+        : `<span class="status-text">該当データがありません</span>`;
+
       if (!total) {
-        root.innerHTML = `<div class="muted">該当データがありません（期間を広げる / 絞り込みを消す など試してください）</div>`;
+        root.innerHTML = `<div class="empty-msg">📭 期間を広げるか、絞り込みを解除してください</div>`;
         return;
       }
-  
+
       for (const day of (data.days || [])) {
         const dayDiv = document.createElement("div");
         dayDiv.className = "day";
-        dayDiv.innerHTML = `<h2>${escapeHtml(day.date)} <span class="pill">JST</span> <span class="pill">${day.items.length}件</span></h2>`;
-  
+        dayDiv.innerHTML = `
+          <div class="day-header">
+            <h2>📅 ${escapeHtml(day.date)}</h2>
+            <span class="pill">JST</span>
+            <span class="pill">${day.items.length} 件</span>
+          </div>`;
+
         for (const it of (day.items || [])) {
-          const before = it.before_url
+          const beforeHtml = it.before_url
             ? `<img loading="lazy" src="${it.before_url}" alt="before">`
-            : `<div class="small">before画像なし</div>`;
-  
-          const after = it.after_url
+            : `<div class="no-image">before 画像なし</div>`;
+
+          const afterHtml = it.after_url
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
-            : `<div class="small">after画像なし</div>`;
-  
+            : `<div class="no-image">after 画像なし</div>`;
+
           const item = document.createElement("div");
           item.className = "item";
           item.innerHTML = `
             <div class="card">
-              <div class="title">before（元画像）</div>
-              ${before}
+              <div class="card-label">📸 Before（元画像）</div>
+              ${beforeHtml}
             </div>
-  
-            <div class="card meta">
-              <div class="title">input（好きなもの）</div>
+
+            <div class="card meta-card">
+              <div class="card-label">✏️ Input（好きなもの）</div>
               <div class="jobid">${escapeHtml(it.job_id)}</div>
               <div class="created">${escapeHtml(it.created_at)}</div>
-              <div class="fav">${escapeHtml(it.favorite_thing || "")}</div>
+              <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
             </div>
-  
+
             <div class="card">
-              <div class="title">after（生成画像）</div>
-              ${after}
+              <div class="card-label">🎨 After（生成画像）</div>
+              ${afterHtml}
             </div>
           `;
           dayDiv.appendChild(item);
@@ -252,82 +576,78 @@
         root.appendChild(dayDiv);
       }
     }
-  
+
     async function fetchData() {
-      const sinceIsoUtc = toUtcIsoForApiFromJstDatetimeLocal(elSinceJst.value);
+      const sinceIsoUtc = toUtcIso(elSinceJst.value);
       const limit = (elLimit.value || "200").trim();
-  
+
       if (!sinceIsoUtc) {
         elStatus.textContent = "表示期間（JST）を入力してください";
         return;
       }
-  
-      // 多重通信をキャンセル
+
       if (inflight) inflight.abort();
       inflight = new AbortController();
-  
+
       const params = new URLSearchParams();
-      params.set("since", sinceIsoUtc);  // URLSearchParamsが勝手にエンコード（+ もOK）
+      params.set("since", sinceIsoUtc);
       params.set("limit", limit);
-  
-      const url = `${API_URL}?${params.toString()}`;
-  
+
+      showLoading();
       elStatus.textContent = "読み込み中...";
-      root.innerHTML = "";
-  
+
       try {
-        const res = await fetch(url, { method: "GET", signal: inflight.signal });
+        const res = await fetch(`${API_URL}?${params.toString()}`, {
+          method: "GET",
+          signal: inflight.signal
+        });
         if (!res.ok) {
           const txt = await res.text();
           elStatus.textContent = `エラー: ${res.status}`;
-          root.innerHTML = `<div class="error">${escapeHtml(txt)}</div>`;
+          root.innerHTML = `<div class="error-box">${escapeHtml(txt)}</div>`;
           return;
         }
         lastData = await res.json();
-        const filtered = applyFilter(lastData, elFilter.value);
-        render(filtered);
+        render(applyFilter(lastData, elFilter.value));
       } catch (e) {
-        if (String(e.name) === "AbortError") return; // キャンセルは無視
+        if (String(e.name) === "AbortError") return;
         elStatus.textContent = "通信エラー";
-        root.innerHTML = `<div class="error">${escapeHtml(String(e))}</div>`;
+        root.innerHTML = `<div class="error-box">${escapeHtml(String(e))}</div>`;
       }
     }
-  
+
     function rerenderByFilter() {
       if (!lastData) return;
-      const filtered = applyFilter(lastData, elFilter.value);
-      render(filtered);
+      render(applyFilter(lastData, elFilter.value));
     }
-  
-    // イベント
-    elLoad.addEventListener("click", fetchData);
-  
+
+    // Events
+    elLoad.addEventListener("click", () => { clearActivePreset(); fetchData(); });
+
     elFilter.addEventListener("input", () => {
-      // 入力途中でガチャガチャしないよう軽くデバウンス
       clearTimeout(filterTimer);
       filterTimer = setTimeout(rerenderByFilter, 150);
     });
-  
-    elPresetToday.addEventListener("click", () => {
-      setActivePreset(elPresetToday);
+
+    elToday.addEventListener("click", () => {
       setPresetTodayMidnight();
+      setActivePreset("today");
+      fetchData();
+    });
+    el24h.addEventListener("click", () => {
+      setPresetFromNow(24*60);
+      setActivePreset("24h");
+      fetchData();
+    });
+    el7d.addEventListener("click", () => {
+      setPresetFromNow(7*24*60);
+      setActivePreset("7d");
       fetchData();
     });
 
-    elPreset24h.addEventListener("click", () => {
-      setActivePreset(elPreset24h);
-      setPresetFromNow(24 * 60);
-      fetchData();
-    });
-
-    elPreset7d.addEventListener("click", () => {
-      setActivePreset(elPreset7d);
-      setPresetFromNow(7 * 24 * 60);
-      fetchData();
-    });
-  
-    // 初期値：今日0:00（JST）を入れて初回ロード
+    // Init: today 0:00
     setPresetTodayMidnight();
+    setActivePreset("today");
     fetchData();
   </script>
 </body>
