@@ -20,7 +20,16 @@
       background:#fff;
     }
     button { cursor:pointer; background:#111; color:#fff; border-color:#111; }
-    button.secondary { background:#fff; color:#111; }
+    /* プリセットボタンの「押されてる」状態 */
+    button.secondary.active {
+      background: #111;
+      color: #fff;
+      border-color: #111;
+    }
+    /* ついで：押した瞬間のフィードバック */
+    button.secondary:active {
+      transform: translateY(1px);
+    }
     .status { margin-top: 10px; font-size: 13px; color: var(--muted); }
     .day { margin-top: 18px; }
     .day h2 { font-size: 16px; margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
@@ -107,6 +116,7 @@
     const elFilter = document.getElementById("filter");
     const elLoad = document.getElementById("load");
     const elPresetToday = document.getElementById("presetToday");
+    const presetButtons = [elPresetToday, elPreset24h, elPreset7d];
     const elPreset24h = document.getElementById("preset24h");
     const elPreset7d = document.getElementById("preset7d");
     const elStatus = document.getElementById("status");
@@ -152,6 +162,11 @@
   
       elSinceJst.value = `${y}-${m}-${d}T${hh}:${mm}`;
     }
+
+    elSinceJst.addEventListener("input", () => {
+      // プリセットの日時から外れた＝手で変更した、という扱いにする
+      setActivePreset(null);
+    });
   
     function setPresetTodayMidnight() {
       const now = new Date();
@@ -165,6 +180,11 @@
     function normalize(s) {
       // 日本語でもOKな「ゆるめ正規化」：前後空白除去 + 小文字化
       return (s ?? "").toString().trim().toLowerCase();
+    }
+
+    function setActivePreset(btnOrNull) {
+      for (const b of presetButtons) b.classList.remove("active");
+      if (btnOrNull) btnOrNull.classList.add("active");
     }
   
     function applyFilter(data, q) {
@@ -288,9 +308,23 @@
       filterTimer = setTimeout(rerenderByFilter, 150);
     });
   
-    elPresetToday.addEventListener("click", () => { setPresetTodayMidnight(); fetchData(); });
-    elPreset24h.addEventListener("click", () => { setPresetFromNow(24 * 60); fetchData(); });
-    elPreset7d.addEventListener("click", () => { setPresetFromNow(7 * 24 * 60); fetchData(); });
+    elPresetToday.addEventListener("click", () => {
+      setActivePreset(elPresetToday);
+      setPresetTodayMidnight();
+      fetchData();
+    });
+
+    elPreset24h.addEventListener("click", () => {
+      setActivePreset(elPreset24h);
+      setPresetFromNow(24 * 60);
+      fetchData();
+    });
+
+    elPreset7d.addEventListener("click", () => {
+      setActivePreset(elPreset7d);
+      setPresetFromNow(7 * 24 * 60);
+      fetchData();
+    });
   
     // 初期値：今日0:00（JST）を入れて初回ロード
     setPresetTodayMidnight();
