@@ -176,7 +176,7 @@
       background: var(--rose-50);
       border-color: var(--rose-300);
     }
-    /* ===== ACTIVE PRESET STATE ===== */
+    /* ===== ACTIVE STATE ===== */
     .btn-secondary.active {
       background: var(--rose-500);
       color: #fff;
@@ -395,6 +395,18 @@
 
         <div class="divider-v"></div>
 
+        <!-- Status filter buttons -->
+        <div>
+          <label class="field-label">表示種別</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="filterGenerated" class="btn btn-secondary">生成成功</button>
+            <button id="filterNg" class="btn btn-secondary">フィルタリングNG</button>
+          </div>
+          <div class="hint">APIに status を渡してサーバ側で絞り込みます</div>
+        </div>
+
+        <div class="divider-v"></div>
+
         <!-- Limit -->
         <div>
           <label class="field-label">最大取得件数</label>
@@ -421,6 +433,7 @@
     <!-- Status -->
     <div class="status-bar">
       <span id="status" class="status-text">期間を選択して「読み込み」を押してください</span>
+      <span id="statusPill" class="pill">status: GENERATED</span>
     </div>
 
     <!-- Content -->
@@ -441,23 +454,27 @@
     const elToyotaLink = document.getElementById("presetToyotaLink");
     const elToyotaFinal = document.getElementById("presetToyotaFinal");
     const elStatus    = document.getElementById("status");
+    const elStatusPill = document.getElementById("statusPill");
     const root        = document.getElementById("root");
+
+    const elFilterGenerated = document.getElementById("filterGenerated");
+    const elFilterNg = document.getElementById("filterNg");
 
     let lastData      = null;
     let inflight      = null;
     let filterTimer   = null;
     let activePreset  = null; // 'today' | '24h' | '7d' | 'toyotaLink' | 'toyotaFinal' | null
 
+    // status filter state
+    let activeStatus = "GENERATED"; // "GENERATED" | "VALIDATION_FAILED"
+
     const presetBtns = { today: elToday, "24h": el24h, "7d": el7d, toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
     function setActivePreset(key) {
       activePreset = key;
       Object.entries(presetBtns).forEach(([k, btn]) => {
-        if (k === key) {
-          btn.classList.add("active");
-        } else {
-          btn.classList.remove("active");
-        }
+        if (k === key) btn.classList.add("active");
+        else btn.classList.remove("active");
       });
     }
 
@@ -466,7 +483,14 @@
       Object.values(presetBtns).forEach(btn => btn.classList.remove("active"));
     }
 
-    // Clear active state when user manually edits the datetime
+    function setActiveStatus(st) {
+      activeStatus = st;
+      elFilterGenerated.classList.toggle("active", st === "GENERATED");
+      elFilterNg.classList.toggle("active", st === "VALIDATION_FAILED");
+      elStatusPill.textContent = `status: ${st}`;
+    }
+
+    // Clear preset active state when user manually edits the datetime
     elSinceJst.addEventListener("input", clearActivePreset);
 
     function escapeHtml(s) {
@@ -541,6 +565,8 @@
         return;
       }
 
+      const isNg = (activeStatus === "VALIDATION_FAILED");
+
       for (const day of (data.days || [])) {
         const dayDiv = document.createElement("div");
         dayDiv.className = "day";
@@ -554,17 +580,17 @@
         for (const it of (day.items || [])) {
           const beforeHtml = it.before_url
             ? `<img loading="lazy" src="${it.before_url}" alt="before">`
-            : `<div class="no-image">before 画像なし</div>`;
+            : `<div class="no-image">${isNg ? "NG 入力画像なし" : "before 画像なし"}</div>`;
 
           const afterHtml = it.after_url
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
-            : `<div class="no-image">after 画像なし</div>`;
+            : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
           const item = document.createElement("div");
           item.className = "item";
           item.innerHTML = `
             <div class="card">
-              <div class="card-label">📸 Before（元画像）</div>
+              <div class="card-label">${isNg ? "📸 Input Image（NG）" : "📸 Before（元画像）"}</div>
               ${beforeHtml}
             </div>
 
@@ -576,7 +602,7 @@
             </div>
 
             <div class="card">
-              <div class="card-label">🎨 After（生成画像）</div>
+              <div class="card-label">${isNg ? "🚫 After（生成なし）" : "🎨 After（生成画像）"}</div>
               ${afterHtml}
             </div>
           `;
@@ -601,6 +627,7 @@
       const params = new URLSearchParams();
       params.set("since", sinceIsoUtc);
       params.set("limit", limit);
+      params.set("status", activeStatus);
 
       showLoading();
       elStatus.textContent = "読み込み中...";
@@ -664,9 +691,20 @@
       fetchData();
     });
 
-    // Init: 2026/2/17 0:00
+    // Status filter buttons
+    elFilterGenerated.addEventListener("click", () => {
+      setActiveStatus("GENERATED");
+      fetchData();
+    });
+    elFilterNg.addEventListener("click", () => {
+      setActiveStatus("VALIDATION_FAILED");
+      fetchData();
+    });
+
+    // Init: 2026/2/17 0:00, status GENERATED
     setPresetDate(2026, 2, 17);
     setActivePreset("toyotaLink");
+    setActiveStatus("GENERATED");
     fetchData();
   </script>
 </body>
