@@ -388,6 +388,8 @@
             <button id="presetToday" class="btn btn-secondary">今日 0:00〜</button>
             <button id="preset24h" class="btn btn-secondary">過去24時間</button>
             <button id="preset7d" class="btn btn-secondary">過去7日</button>
+            <button id="presetToyotaLink" class="btn btn-secondary">トヨタ合成リンク実施期間</button>
+            <button id="presetToyotaFinal" class="btn btn-secondary">トヨタ合成最終週</button>
           </div>
         </div>
 
@@ -436,15 +438,17 @@
     const elToday     = document.getElementById("presetToday");
     const el24h       = document.getElementById("preset24h");
     const el7d        = document.getElementById("preset7d");
+    const elToyotaLink = document.getElementById("presetToyotaLink");
+    const elToyotaFinal = document.getElementById("presetToyotaFinal");
     const elStatus    = document.getElementById("status");
     const root        = document.getElementById("root");
 
     let lastData      = null;
     let inflight      = null;
     let filterTimer   = null;
-    let activePreset  = null; // 'today' | '24h' | '7d' | null
+    let activePreset  = null; // 'today' | '24h' | '7d' | 'toyotaLink' | 'toyotaFinal' | null
 
-    const presetBtns = { today: elToday, "24h": el24h, "7d": el7d };
+    const presetBtns = { today: elToday, "24h": el24h, "7d": el7d, toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
     function setActivePreset(key) {
       activePreset = key;
@@ -491,6 +495,11 @@
       const jstNow = new Date(Date.now() + 9*60*60*1000);
       const pad = n => String(n).padStart(2,"0");
       elSinceJst.value = `${jstNow.getUTCFullYear()}-${pad(jstNow.getUTCMonth()+1)}-${pad(jstNow.getUTCDate())}T00:00`;
+    }
+
+    function setPresetDate(year, month, day) {
+      const pad = n => String(n).padStart(2,"0");
+      elSinceJst.value = `${year}-${pad(month)}-${pad(day)}T00:00`;
     }
 
     function normalize(s) {
@@ -644,10 +653,20 @@
       setActivePreset("7d");
       fetchData();
     });
+    elToyotaLink.addEventListener("click", () => {
+      setPresetDate(2026, 2, 17);
+      setActivePreset("toyotaLink");
+      fetchData();
+    });
+    elToyotaFinal.addEventListener("click", () => {
+      setPresetDate(2026, 3, 2);
+      setActivePreset("toyotaFinal");
+      fetchData();
+    });
 
-    // Init: today 0:00
-    setPresetTodayMidnight();
-    setActivePreset("today");
+    // Init: 2026/2/17 0:00
+    setPresetDate(2026, 2, 17);
+    setActivePreset("toyotaLink");
     fetchData();
   </script>
 </body>
