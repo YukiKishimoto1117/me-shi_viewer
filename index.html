@@ -455,6 +455,24 @@
           <input id="filter" class="w-filter" type="text" placeholder="例: パンケーキ / 3428ccf..." style="width:100%;" />
           <div class="hint">読み込み済みデータを画面内で絞り込みます（通信しません）</div>
         </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Feedback filter -->
+        <div>
+          <label class="field-label">フィードバック絞り込み</label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;">
+              <button id="fbWolfy" class="btn btn-secondary btn-fb" data-fb="wolfy">🐺 wolfy</button>
+              <button id="fbMyself" class="btn btn-secondary btn-fb" data-fb="myself">🙋 myself</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button id="fbGood" class="btn btn-secondary btn-fb" data-fb="good">👍 good</button>
+              <button id="fbBad" class="btn btn-secondary btn-fb" data-fb="bad">👎 bad</button>
+            </div>
+          </div>
+          <div class="hint">AND検索。未選択なら全件表示（通信しません）</div>
+        </div>
       </div>
     </div>
 
@@ -494,6 +512,10 @@
     let activePreset  = null;
 
     let activeStatus = "GENERATED";
+
+    // feedback フィルタ状態（null = 未選択）
+    let fbWho  = null; // "wolfy" | "myself" | null
+    let fbEval = null; // "good"  | "bad"    | null
 
     const presetBtns = { today: elToday, "24h": el24h, "7d": el7d, toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
@@ -556,15 +578,58 @@
       return (s ?? "").toString().trim().toLowerCase();
     }
 
+    // Feedback ボタンのトグル
+    function updateFbButtons() {
+      document.getElementById("fbWolfy").classList.toggle("active", fbWho === "wolfy");
+      document.getElementById("fbMyself").classList.toggle("active", fbWho === "myself");
+      document.getElementById("fbGood").classList.toggle("active", fbEval === "good");
+      document.getElementById("fbBad").classList.toggle("active", fbEval === "bad");
+    }
+
+    document.getElementById("fbWolfy").addEventListener("click", () => {
+      fbWho = fbWho === "wolfy" ? null : "wolfy";
+      updateFbButtons();
+      rerenderByFilter();
+    });
+    document.getElementById("fbMyself").addEventListener("click", () => {
+      fbWho = fbWho === "myself" ? null : "myself";
+      updateFbButtons();
+      rerenderByFilter();
+    });
+    document.getElementById("fbGood").addEventListener("click", () => {
+      fbEval = fbEval === "good" ? null : "good";
+      updateFbButtons();
+      rerenderByFilter();
+    });
+    document.getElementById("fbBad").addEventListener("click", () => {
+      fbEval = fbEval === "bad" ? null : "bad";
+      updateFbButtons();
+      rerenderByFilter();
+    });
+
+    function matchFeedback(feedback) {
+      // どちらも未選択なら全件通す
+      if (!fbWho && !fbEval) return true;
+      if (!feedback) return false;
+      const lower = feedback.toLowerCase();
+      // 選択されてる条件を両方満たす必要がある（AND）
+      if (fbWho && !lower.startsWith(fbWho + "_")) return false;
+      if (fbEval && !lower.endsWith("_" + fbEval)) return false;
+      return true;
+    }
+
     function applyFilter(data, q) {
       q = normalize(q);
-      if (!q) return data;
+      const hasFbFilter = fbWho || fbEval;
+      if (!q && !hasFbFilter) return data;
       const days = [];
       for (const day of (data.days || [])) {
-        const items = (day.items || []).filter(it =>
-          normalize(it.favorite_thing || "").includes(q) ||
-          normalize(it.job_id || "").includes(q)
-        );
+        const items = (day.items || []).filter(it => {
+          const textMatch = !q ||
+            normalize(it.favorite_thing || "").includes(q) ||
+            normalize(it.job_id || "").includes(q);
+          return textMatch && matchFeedback(it.feedback);
+        });
         if (items.length) days.push({ date: day.date, items });
       }
       return { ...data, days, count: days.reduce((a,d)=>a+d.items.length,0) };
