@@ -176,7 +176,6 @@
       background: var(--rose-50);
       border-color: var(--rose-300);
     }
-    /* ===== ACTIVE STATE ===== */
     .btn-secondary.active {
       background: var(--rose-500);
       color: #fff;
@@ -298,6 +297,35 @@
     .fav-text::before {
       content: "❤️ ";
     }
+
+    /* ===== FEEDBACK ===== */
+    .feedback-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1.5px solid;
+    }
+    .feedback-badge.good {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #15803d;
+    }
+    .feedback-badge.bad {
+      background: #fff1f2;
+      border-color: var(--rose-200);
+      color: var(--rose-700);
+    }
+    .feedback-badge.none {
+      background: var(--gray-50);
+      border-color: var(--gray-200);
+      color: var(--gray-500);
+      font-weight: 400;
+    }
+
     .no-image {
       font-size: 0.75rem;
       color: var(--muted);
@@ -463,10 +491,9 @@
     let lastData      = null;
     let inflight      = null;
     let filterTimer   = null;
-    let activePreset  = null; // 'today' | '24h' | '7d' | 'toyotaLink' | 'toyotaFinal' | null
+    let activePreset  = null;
 
-    // status filter state
-    let activeStatus = "GENERATED"; // "GENERATED" | "VALIDATION_FAILED"
+    let activeStatus = "GENERATED";
 
     const presetBtns = { today: elToday, "24h": el24h, "7d": el7d, toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
@@ -490,7 +517,6 @@
       elStatusPill.textContent = `status: ${st}`;
     }
 
-    // Clear preset active state when user manually edits the datetime
     elSinceJst.addEventListener("input", clearActivePreset);
 
     function escapeHtml(s) {
@@ -542,6 +568,21 @@
         if (items.length) days.push({ date: day.date, items });
       }
       return { ...data, days, count: days.reduce((a,d)=>a+d.items.length,0) };
+    }
+
+    function feedbackBadgeHtml(feedback) {
+      if (!feedback) {
+        return `<span class="feedback-badge none">💬 フィードバックなし</span>`;
+      }
+      const lower = feedback.toLowerCase();
+      if (lower === "good") {
+        return `<span class="feedback-badge good">👍 good</span>`;
+      } else if (lower === "bad") {
+        return `<span class="feedback-badge bad">👎 bad</span>`;
+      } else {
+        // その他の値はそのまま表示
+        return `<span class="feedback-badge none">💬 ${escapeHtml(feedback)}</span>`;
+      }
     }
 
     function showLoading() {
@@ -599,6 +640,7 @@
               <div class="jobid">${escapeHtml(it.job_id)}</div>
               <div class="created">${escapeHtml(it.created_at)}</div>
               <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
+              ${feedbackBadgeHtml(it.feedback)}
             </div>
 
             <div class="card">
@@ -691,7 +733,6 @@
       fetchData();
     });
 
-    // Status filter buttons
     elFilterGenerated.addEventListener("click", () => {
       setActiveStatus("GENERATED");
       fetchData();
@@ -701,7 +742,7 @@
       fetchData();
     });
 
-    // Init: 2026/2/17 0:00, status GENERATED
+    // Init
     setPresetDate(2026, 2, 17);
     setActivePreset("toyotaLink");
     setActiveStatus("GENERATED");
