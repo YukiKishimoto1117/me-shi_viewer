@@ -405,17 +405,18 @@
         <!-- Date range -->
         <div>
           <label class="field-label">表示期間（JST）</label>
-          <input id="sinceJst" class="w-datetime" type="datetime-local" />
-          <div class="hint">指定した日時「以降」のデータを表示します</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input id="sinceJst" class="w-datetime" type="datetime-local" />
+            <span style="color:var(--gray-500);font-weight:700;">～</span>
+            <input id="untilJst" class="w-datetime" type="datetime-local" />
+          </div>
+          <div class="hint">指定した日時の範囲内のデータを表示します</div>
         </div>
 
         <!-- Preset buttons -->
         <div>
           <label class="field-label">クイック選択</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button id="presetToday" class="btn btn-secondary">今日 0:00〜</button>
-            <button id="preset24h" class="btn btn-secondary">過去24時間</button>
-            <button id="preset7d" class="btn btn-secondary">過去7日</button>
             <button id="presetToyotaLink" class="btn btn-secondary">トヨタ合成リンク実施期間</button>
             <button id="presetToyotaFinal" class="btn btn-secondary">トヨタ合成最終週</button>
           </div>
@@ -491,12 +492,10 @@
     const API_URL = "https://1x7wkzlgv2.execute-api.ap-northeast-1.amazonaws.com/prd/gallery";
 
     const elSinceJst  = document.getElementById("sinceJst");
+    const elUntilJst  = document.getElementById("untilJst");
     const elLimit     = document.getElementById("limit");
     const elFilter    = document.getElementById("filter");
     const elLoad      = document.getElementById("load");
-    const elToday     = document.getElementById("presetToday");
-    const el24h       = document.getElementById("preset24h");
-    const el7d        = document.getElementById("preset7d");
     const elToyotaLink = document.getElementById("presetToyotaLink");
     const elToyotaFinal = document.getElementById("presetToyotaFinal");
     const elStatus    = document.getElementById("status");
@@ -517,7 +516,7 @@
     let fbWho  = null; // "wolfy" | "myself" | null
     let fbEval = null; // "good"  | "bad"    | null
 
-    const presetBtns = { today: elToday, "24h": el24h, "7d": el7d, toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
+    const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
     function setActivePreset(key) {
       activePreset = key;
@@ -540,6 +539,7 @@
     }
 
     elSinceJst.addEventListener("input", clearActivePreset);
+    elUntilJst.addEventListener("input", clearActivePreset);
 
     function escapeHtml(s) {
       return (s ?? "").toString()
@@ -547,12 +547,12 @@
         .replaceAll('"',"&quot;").replaceAll("'","&#039;");
     }
 
-    function toUtcIso(value) {
+    function toUtcIso(value, seconds = 0) {
       if (!value) return null;
       const [datePart, timePart] = value.split("T");
       const [y,m,d] = datePart.split("-").map(Number);
       const [hh,mm] = timePart.split(":").map(Number);
-      const utc = new Date(Date.UTC(y, m-1, d, hh-9, mm, 0));
+      const utc = new Date(Date.UTC(y, m-1, d, hh-9, mm, seconds));
       return utc.toISOString().replace(".000Z", "+00:00");
     }
 
@@ -572,6 +572,12 @@
     function setPresetDate(year, month, day) {
       const pad = n => String(n).padStart(2,"0");
       elSinceJst.value = `${year}-${pad(month)}-${pad(day)}T00:00`;
+    }
+
+    function setPresetDateRange(startYear, startMonth, startDay, startHour, startMinute, endYear, endMonth, endDay, endHour, endMinute) {
+      const pad = n => String(n).padStart(2,"0");
+      elSinceJst.value = `${startYear}-${pad(startMonth)}-${pad(startDay)}T${pad(startHour)}:${pad(startMinute)}`;
+      elUntilJst.value = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHour)}:${pad(endMinute)}`;
     }
 
     function normalize(s) {
@@ -728,11 +734,12 @@
     }
 
     async function fetchData() {
-      const sinceIsoUtc = toUtcIso(elSinceJst.value);
+      const sinceIsoUtc = toUtcIso(elSinceJst.value, 0);
+      const untilIsoUtc = toUtcIso(elUntilJst.value, 59);
       const limit = (elLimit.value || "200").trim();
 
-      if (!sinceIsoUtc) {
-        elStatus.textContent = "表示期間（JST）を入力してください";
+      if (!sinceIsoUtc || !untilIsoUtc) {
+        elStatus.textContent = "表示期間（開始日時と終了日時）を入力してください";
         return;
       }
 
@@ -741,6 +748,7 @@
 
       const params = new URLSearchParams();
       params.set("since", sinceIsoUtc);
+      params.set("until", untilIsoUtc);
       params.set("limit", limit);
       params.set("status", activeStatus);
 
@@ -780,23 +788,8 @@
       filterTimer = setTimeout(rerenderByFilter, 150);
     });
 
-    elToday.addEventListener("click", () => {
-      setPresetTodayMidnight();
-      setActivePreset("today");
-      fetchData();
-    });
-    el24h.addEventListener("click", () => {
-      setPresetFromNow(24*60);
-      setActivePreset("24h");
-      fetchData();
-    });
-    el7d.addEventListener("click", () => {
-      setPresetFromNow(7*24*60);
-      setActivePreset("7d");
-      fetchData();
-    });
     elToyotaLink.addEventListener("click", () => {
-      setPresetDate(2026, 2, 17);
+      setPresetDateRange(2026, 2, 17, 0, 0, 2026, 3, 8, 23, 59);
       setActivePreset("toyotaLink");
       fetchData();
     });
@@ -816,7 +809,7 @@
     });
 
     // Init
-    setPresetDate(2026, 2, 17);
+    setPresetDateRange(2026, 2, 17, 0, 0, 2026, 3, 8, 23, 59);
     setActivePreset("toyotaLink");
     setActiveStatus("GENERATED");
     fetchData();
