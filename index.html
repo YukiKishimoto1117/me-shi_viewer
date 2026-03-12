@@ -650,6 +650,13 @@
       }
     }
 
+    function printBadgeHtml(printVal) {
+        if (printVal === "○") {
+            return `<span class="feedback-badge good">🖨️ 印刷済み</span>`;
+        }
+        return `<span class="feedback-badge none">🖨️ 未印刷</span>`;
+    }
+
     function showLoading() {
       root.innerHTML = `
         <div class="loading">
@@ -706,6 +713,7 @@
               <div class="created">${escapeHtml(it.created_at)}</div>
               <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
               ${feedbackBadgeHtml(it.feedback)}
+              ${printBadgeHtml(it.print)}   // ← 追加
             </div>
 
             <div class="card">
