@@ -410,7 +410,7 @@
             <span style="color:var(--gray-500);font-weight:700;">～</span>
             <input id="untilJst" class="w-datetime" type="datetime-local" />
           </div>
-          <div class="hint">指定した日時の範囲内のデータを表示します</div>
+          <div class="hint">開始日時のみ: ○○以降 / 終了日時のみ: ○○まで / 両方: 範囲検索 / 未指定: 全期間</div>
         </div>
 
         <!-- Preset buttons -->
@@ -738,17 +738,20 @@
       const untilIsoUtc = toUtcIso(elUntilJst.value, 59);
       const limit = (elLimit.value || "200").trim();
 
-      if (!sinceIsoUtc || !untilIsoUtc) {
-        elStatus.textContent = "表示期間（開始日時と終了日時）を入力してください";
-        return;
+      if (!sinceIsoUtc && !untilIsoUtc) {
+        // 両方未指定の場合は全期間として扱う（パラメータを送らない）
       }
 
       if (inflight) inflight.abort();
       inflight = new AbortController();
 
       const params = new URLSearchParams();
-      params.set("since", sinceIsoUtc);
-      params.set("until", untilIsoUtc);
+      if (sinceIsoUtc) {
+        params.set("since", sinceIsoUtc);
+      }
+      if (untilIsoUtc) {
+        params.set("until", untilIsoUtc);
+      }
       params.set("limit", limit);
       params.set("status", activeStatus);
 
