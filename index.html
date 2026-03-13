@@ -474,6 +474,17 @@
           </div>
           <div class="hint">AND検索。未選択なら全件表示（通信しません）</div>
         </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Print filter -->
+        <div>
+          <label class="field-label">印刷状態絞り込み</label>
+          <div style="display:flex;gap:8px;">
+            <button id="filterPrinted" class="btn btn-secondary">🖨️ 印刷済みのみ</button>
+          </div>
+          <div class="hint">未選択なら全件表示（通信しません）</div>
+        </div>
       </div>
     </div>
 
@@ -504,6 +515,7 @@
 
     const elFilterGenerated = document.getElementById("filterGenerated");
     const elFilterNg = document.getElementById("filterNg");
+    const elFilterPrinted = document.getElementById("filterPrinted");
 
     let lastData      = null;
     let inflight      = null;
@@ -515,6 +527,8 @@
     // feedback フィルタ状態（null = 未選択）
     let fbWho  = null; // "wolfy" | "myself" | null
     let fbEval = null; // "good"  | "bad"    | null
+    // 印刷済みフィルタ状態（null = 未選択、true = 印刷済みのみ）
+    let filterPrinted = null; // true | null
 
     const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
 
@@ -613,6 +627,12 @@
       rerenderByFilter();
     });
 
+    elFilterPrinted.addEventListener("click", () => {
+      filterPrinted = filterPrinted === true ? null : true;
+      elFilterPrinted.classList.toggle("active", filterPrinted === true);
+      rerenderByFilter();
+    });
+
     function matchFeedback(feedback) {
       // どちらも未選択なら全件通す
       if (!fbWho && !fbEval) return true;
@@ -624,17 +644,25 @@
       return true;
     }
 
+    function matchPrint(printVal) {
+      // 印刷済みフィルタが未選択なら全件通す
+      if (!filterPrinted) return true;
+      // 印刷済みのみ表示する場合、printValが"○"である必要がある
+      return printVal === "○";
+    }
+
     function applyFilter(data, q) {
       q = normalize(q);
       const hasFbFilter = fbWho || fbEval;
-      if (!q && !hasFbFilter) return data;
+      const hasPrintFilter = filterPrinted !== null;
+      if (!q && !hasFbFilter && !hasPrintFilter) return data;
       const days = [];
       for (const day of (data.days || [])) {
         const items = (day.items || []).filter(it => {
           const textMatch = !q ||
             normalize(it.favorite_thing || "").includes(q) ||
             normalize(it.job_id || "").includes(q);
-          return textMatch && matchFeedback(it.feedback);
+          return textMatch && matchFeedback(it.feedback) && matchPrint(it.print);
         });
         if (items.length) days.push({ date: day.date, items });
       }
