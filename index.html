@@ -187,6 +187,52 @@
       border-color: var(--rose-600);
     }
 
+    /* ===== DOWNLOAD BUTTON ===== */
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 2px solid #6366f1;
+      background: #eef2ff;
+      color: #4338ca;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      margin-top: 10px;
+      text-decoration: none;
+    }
+    .btn-download:hover {
+      background: #6366f1;
+      color: #fff;
+      transform: scale(1.02);
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+
+    /* ===== TICKET BADGE ===== */
+    .ticket-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1.5px solid var(--amber-100);
+      background: var(--amber-50);
+      color: var(--amber-800);
+    }
+    .ticket-badge.none {
+      background: var(--gray-50);
+      border-color: var(--gray-200);
+      color: var(--gray-500);
+      font-weight: 400;
+      font-size: 0.78rem;
+    }
+
     /* ===== STATUS ===== */
     .status-bar {
       margin-bottom: 14px;
@@ -691,6 +737,30 @@
         return `<span class="feedback-badge none">🖨️ 未印刷</span>`;
     }
 
+    function ticketBadgeHtml(ticket) {
+      if (ticket) {
+        return `<span class="ticket-badge">🎫 整理券 No. ${escapeHtml(ticket)}</span>`;
+      }
+      return `<span class="ticket-badge none">🎫 整理券番号なし</span>`;
+    }
+
+    async function downloadImage(url, filename) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        alert("ダウンロードに失敗しました: " + e.message);
+      }
+    }
+
     function showLoading() {
       root.innerHTML = `
         <div class="loading">
@@ -733,6 +803,11 @@
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
+          // ダウンロードボタン（生成成功 & after_url がある場合のみ）
+          const downloadBtnHtml = (!isNg && it.after_url)
+            ? `<button class="btn-download" onclick="downloadImage('${it.after_url}', '${escapeHtml(it.job_id)}.png')">⬇️ ダウンロード</button>`
+            : "";
+
           const item = document.createElement("div");
           item.className = "item";
           item.innerHTML = `
@@ -743,16 +818,18 @@
 
             <div class="card meta-card">
               <div class="card-label">✏️ Input（好きなもの）</div>
+              ${ticketBadgeHtml(it.ticket)}
               <div class="jobid">${escapeHtml(it.job_id)}</div>
               <div class="created">${escapeHtml(it.created_at)}</div>
               <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
               ${feedbackBadgeHtml(it.feedback)}
-              ${printBadgeHtml(it.print)} 
+              ${printBadgeHtml(it.print)}
             </div>
 
             <div class="card">
               <div class="card-label">${isNg ? "🚫 After（生成なし）" : "🎨 After（生成画像）"}</div>
               ${afterHtml}
+              ${downloadBtnHtml}
             </div>
           `;
           dayDiv.appendChild(item);
