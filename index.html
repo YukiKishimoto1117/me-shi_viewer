@@ -744,23 +744,6 @@
       return `<span class="ticket-badge none">🎫 整理券番号なし</span>`;
     }
 
-    async function downloadImage(url, filename) {
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      } catch (e) {
-        alert("ダウンロードに失敗しました: " + e.message);
-      }
-    }
-
     function showLoading() {
       root.innerHTML = `
         <div class="loading">
@@ -803,9 +786,9 @@
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
-          // ダウンロードボタン（生成成功 & after_url がある場合のみ）
-          const downloadBtnHtml = (!isNg && it.after_url)
-            ? `<button class="btn-download" onclick="downloadImage('${it.after_url}', '${escapeHtml(it.job_id)}.png')">⬇️ ダウンロード</button>`
+          // ダウンロードボタン（生成成功 & after_download_url がある場合のみ）
+          const downloadBtnHtml = (!isNg && it.after_download_url)
+            ? `<a class="btn-download" href="${it.after_download_url}" download="${escapeHtml(it.job_id)}.png">⬇️ ダウンロード</a>`
             : "";
 
           const item = document.createElement("div");
