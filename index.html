@@ -211,6 +211,14 @@
       transform: scale(1.02);
       box-shadow: 0 2px 8px rgba(99,102,241,0.3);
     }
+    /* ★ ダウンロード済み状態 */
+    .btn-download.downloaded {
+      border-color: #86efac;
+      background: #f0fdf4;
+      color: #15803d;
+      cursor: default;
+      pointer-events: none;
+    }
 
     /* ===== TICKET BADGE ===== */
     .ticket-badge {
@@ -527,7 +535,7 @@
         <div>
           <label class="field-label">印刷状態絞り込み</label>
           <div style="display:flex;gap:8px;">
-            <button id="filterPrinted" class="btn btn-secondary">🖨️ 印刷済みのみ</button>
+            <button id="filterPrinted" class="btn btn-secondary">🖨️ 印刷要望ありのみ</button>
           </div>
           <div class="hint">未選択なら全件表示（通信しません）</div>
         </div>
@@ -569,6 +577,9 @@
     let activePreset  = null;
 
     let activeStatus = "GENERATED";
+
+    // ★ ダウンロード済みjob_idを追跡するSet
+    const downloadedJobIds = new Set();
 
     // feedback フィルタ状態（null = 未選択）
     let fbWho  = null; // "wolfy" | "myself" | null
@@ -693,7 +704,7 @@
     function matchPrint(printVal) {
       // 印刷済みフィルタが未選択なら全件通す
       if (!filterPrinted) return true;
-      // 印刷済みのみ表示する場合、printValが"○"である必要がある
+      // 印刷要望ありのみ表示する場合、printValが"○"である必要がある
       return printVal === "○";
     }
 
@@ -732,9 +743,9 @@
 
     function printBadgeHtml(printVal) {
         if (printVal === "○") {
-            return `<span class="feedback-badge good">🖨️ 印刷済み</span>`;
+            return `<span class="feedback-badge good">🖨️ 印刷要望あり</span>`;
         }
-        return `<span class="feedback-badge none">🖨️ 未印刷</span>`;
+        return `<span class="feedback-badge none">🖨️ 印刷要望なし</span>`;
     }
 
     function ticketBadgeHtml(ticket) {
@@ -751,6 +762,24 @@
           <span class="loading-text">読み込み中...</span>
         </div>`;
     }
+
+    // ★ ダウンロードボタンのクリックハンドラをイベント委譲で処理
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-download");
+      if (!btn || btn.classList.contains("downloaded")) return;
+
+      const jobId = btn.dataset.jobId;
+      if (jobId) {
+        downloadedJobIds.add(jobId);
+      }
+
+      // クリック後に表示を「ダウンロード済み」に変更
+      // ※ 実際のダウンロードはブラウザのデフォルト動作（<a download>）で行われる
+      setTimeout(() => {
+        btn.classList.add("downloaded");
+        btn.innerHTML = "✅ ダウンロード済み";
+      }, 300);
+    });
 
     function render(data) {
       root.innerHTML = "";
@@ -786,10 +815,16 @@
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
-          // ダウンロードボタン（生成成功 & after_download_url がある場合のみ）
-          const downloadBtnHtml = (!isNg && it.after_download_url)
-            ? `<a class="btn-download" href="${it.after_download_url}" download="${escapeHtml(it.job_id)}.png">⬇️ ダウンロード</a>`
-            : "";
+          // ★ ダウンロードボタン（ダウンロード済みならスタイル変更）
+          let downloadBtnHtml = "";
+          if (!isNg && it.after_download_url) {
+            const isDownloaded = downloadedJobIds.has(it.job_id);
+            if (isDownloaded) {
+              downloadBtnHtml = `<span class="btn-download downloaded" data-job-id="${escapeHtml(it.job_id)}">✅ ダウンロード済み</span>`;
+            } else {
+              downloadBtnHtml = `<a class="btn-download" href="${it.after_download_url}" download="${escapeHtml(it.job_id)}.png" data-job-id="${escapeHtml(it.job_id)}">⬇️ ダウンロード</a>`;
+            }
+          }
 
           const item = document.createElement("div");
           item.className = "item";
