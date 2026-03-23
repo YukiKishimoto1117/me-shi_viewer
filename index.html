@@ -473,6 +473,7 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button id="presetToyotaLink" class="btn btn-secondary">トヨタ合成リンク実施期間</button>
             <button id="presetToyotaFinal" class="btn btn-secondary">トヨタ合成最終週</button>
+            <button id="presetSakuraBetsuin" class="btn btn-secondary">サクラベツイン2026期間</button>
           </div>
         </div>
 
@@ -563,6 +564,7 @@
     const elLoad      = document.getElementById("load");
     const elToyotaLink = document.getElementById("presetToyotaLink");
     const elToyotaFinal = document.getElementById("presetToyotaFinal");
+    const elSakuraBetsuin = document.getElementById("presetSakuraBetsuin");
     const elStatus    = document.getElementById("status");
     const elStatusPill = document.getElementById("statusPill");
     const root        = document.getElementById("root");
@@ -587,7 +589,7 @@
     // 印刷済みフィルタ状態（null = 未選択、true = 印刷済みのみ）
     let filterPrinted = null; // true | null
 
-    const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal };
+    const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal, sakuraBetsuin: elSakuraBetsuin };
 
     function setActivePreset(key) {
       activePreset = key;
@@ -922,6 +924,11 @@
     elToyotaFinal.addEventListener("click", () => {
       setPresetDateRange(2026, 3, 2, 0, 0, 2026, 3, 8, 23, 59);
       setActivePreset("toyotaFinal");
+      fetchData();
+    });
+    elSakuraBetsuin.addEventListener("click", () => {
+      setPresetDateRange(2026, 3, 28, 0, 0, 2026, 3, 29, 23, 59);
+      setActivePreset("sakuraBetsuin");
       fetchData();
     });
 
