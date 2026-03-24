@@ -580,8 +580,9 @@
 
     let activeStatus = "GENERATED";
 
-    // ★ ダウンロード済みjob_idを追跡するSet
-    const downloadedJobIds = new Set();
+    // ★ ダウンロード済みjob_idを追跡するSet（localStorageで永続化）
+    const STORAGE_KEY = "downloadedJobIds";
+    const downloadedJobIds = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
 
     // feedback フィルタ状態（null = 未選択）
     let fbWho  = null; // "wolfy" | "myself" | null
@@ -773,6 +774,7 @@
       const jobId = btn.dataset.jobId;
       if (jobId) {
         downloadedJobIds.add(jobId);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...downloadedJobIds]));
       }
 
       // クリック後に表示を「ダウンロード済み」に変更
