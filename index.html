@@ -219,6 +219,14 @@
       cursor: default;
       pointer-events: none;
     }
+    /* ★ API送信中 */
+    .btn-download.saving {
+      border-color: #fbbf24;
+      background: #fffbeb;
+      color: #92400e;
+      cursor: wait;
+      pointer-events: none;
+    }
 
     /* ===== TICKET BADGE ===== */
     .ticket-badge {
@@ -540,6 +548,17 @@
           </div>
           <div class="hint">未選択なら全件表示（通信しません）</div>
         </div>
+
+        <div class="divider-v"></div>
+
+        <!-- Download filter -->
+        <div>
+          <label class="field-label">ダウンロード状態絞り込み</label>
+          <div style="display:flex;gap:8px;">
+            <button id="filterDownloaded" class="btn btn-secondary">⬇️ 未DLのみ</button>
+          </div>
+          <div class="hint">未選択なら全件表示（通信しません）</div>
+        </div>
       </div>
     </div>
 
@@ -572,6 +591,7 @@
     const elFilterGenerated = document.getElementById("filterGenerated");
     const elFilterNg = document.getElementById("filterNg");
     const elFilterPrinted = document.getElementById("filterPrinted");
+    const elFilterDownloaded = document.getElementById("filterDownloaded");
 
     let lastData      = null;
     let inflight      = null;
@@ -580,15 +600,13 @@
 
     let activeStatus = "GENERATED";
 
-    // ★ ダウンロード済みjob_idを追跡するSet（localStorageで永続化）
-    const STORAGE_KEY = "downloadedJobIds";
-    const downloadedJobIds = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
-
     // feedback フィルタ状態（null = 未選択）
     let fbWho  = null; // "wolfy" | "myself" | null
     let fbEval = null; // "good"  | "bad"    | null
     // 印刷済みフィルタ状態（null = 未選択、true = 印刷済みのみ）
     let filterPrinted = null; // true | null
+    // ダウンロード状態フィルタ（null = 全件、true = 未DLのみ）
+    let filterNotDownloaded = null; // true | null
 
     const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal, sakuraBetsuin: elSakuraBetsuin };
 
@@ -693,6 +711,12 @@
       rerenderByFilter();
     });
 
+    elFilterDownloaded.addEventListener("click", () => {
+      filterNotDownloaded = filterNotDownloaded === true ? null : true;
+      elFilterDownloaded.classList.toggle("active", filterNotDownloaded === true);
+      rerenderByFilter();
+    });
+
     function matchFeedback(feedback) {
       // どちらも未選択なら全件通す
       if (!fbWho && !fbEval) return true;
@@ -705,24 +729,32 @@
     }
 
     function matchPrint(printVal) {
-      // 印刷済みフィルタが未選択なら全件通す
       if (!filterPrinted) return true;
-      // 印刷要望ありのみ表示する場合、printValが"○"である必要がある
       return printVal === "○";
+    }
+
+    function matchDownloaded(downloadedVal) {
+      if (!filterNotDownloaded) return true;
+      // 未DLのみ表示 = downloaded が "○" でないもの
+      return downloadedVal !== "○";
     }
 
     function applyFilter(data, q) {
       q = normalize(q);
       const hasFbFilter = fbWho || fbEval;
       const hasPrintFilter = filterPrinted !== null;
-      if (!q && !hasFbFilter && !hasPrintFilter) return data;
+      const hasDownloadedFilter = filterNotDownloaded !== null;
+      if (!q && !hasFbFilter && !hasPrintFilter && !hasDownloadedFilter) return data;
       const days = [];
       for (const day of (data.days || [])) {
         const items = (day.items || []).filter(it => {
           const textMatch = !q ||
             normalize(it.favorite_thing || "").includes(q) ||
             normalize(it.job_id || "").includes(q);
-          return textMatch && matchFeedback(it.feedback) && matchPrint(it.print);
+          return textMatch
+            && matchFeedback(it.feedback)
+            && matchPrint(it.print)
+            && matchDownloaded(it.downloaded);
         });
         if (items.length) days.push({ date: day.date, items });
       }
@@ -739,7 +771,6 @@
       } else if (lower === "bad") {
         return `<span class="feedback-badge bad">👎 bad</span>`;
       } else {
-        // その他の値はそのまま表示
         return `<span class="feedback-badge none">💬 ${escapeHtml(feedback)}</span>`;
       }
     }
@@ -749,6 +780,13 @@
             return `<span class="feedback-badge good">🖨️ 印刷要望あり</span>`;
         }
         return `<span class="feedback-badge none">🖨️ 印刷要望なし</span>`;
+    }
+
+    function downloadedBadgeHtml(downloadedVal) {
+      if (downloadedVal === "○") {
+        return `<span class="feedback-badge good">⬇️ ダウンロード済み</span>`;
+      }
+      return `<span class="feedback-badge none">⬇️ 未ダウンロード</span>`;
     }
 
     function ticketBadgeHtml(ticket) {
@@ -766,23 +804,60 @@
         </div>`;
     }
 
-    // ★ ダウンロードボタンのクリックハンドラをイベント委譲で処理
-    document.addEventListener("click", (e) => {
+    // ★ ダウンロードボタンのクリックハンドラ（API経由でDynamoDBを更新）
+    document.addEventListener("click", async (e) => {
       const btn = e.target.closest(".btn-download");
-      if (!btn || btn.classList.contains("downloaded")) return;
+      if (!btn || btn.classList.contains("downloaded") || btn.classList.contains("saving")) return;
 
       const jobId = btn.dataset.jobId;
-      if (jobId) {
-        downloadedJobIds.add(jobId);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...downloadedJobIds]));
-      }
+      if (!jobId) return;
 
-      // クリック後に表示を「ダウンロード済み」に変更
-      // ※ 実際のダウンロードはブラウザのデフォルト動作（<a download>）で行われる
-      setTimeout(() => {
+      // 送信中の表示
+      btn.classList.add("saving");
+      btn.innerHTML = "⏳ 保存中...";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job_id: jobId }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("Download flag update failed:", errText);
+          btn.classList.remove("saving");
+          btn.innerHTML = "❌ エラー（再試行）";
+          return;
+        }
+
+        // 成功 → ダウンロード済みに変更
+        btn.classList.remove("saving");
         btn.classList.add("downloaded");
         btn.innerHTML = "✅ ダウンロード済み";
-      }, 300);
+
+        // lastData内のアイテムも更新（フィルタ再適用時のため）
+        if (lastData) {
+          for (const day of (lastData.days || [])) {
+            for (const it of (day.items || [])) {
+              if (it.job_id === jobId) {
+                it.downloaded = "○";
+              }
+            }
+          }
+        }
+
+        // メタカード内のバッジも更新
+        const badgeEl = document.querySelector(`[data-downloaded-badge="${jobId}"]`);
+        if (badgeEl) {
+          badgeEl.outerHTML = `<span class="feedback-badge good" data-downloaded-badge="${escapeHtml(jobId)}">⬇️ ダウンロード済み</span>`;
+        }
+
+      } catch (err) {
+        console.error("Download flag update error:", err);
+        btn.classList.remove("saving");
+        btn.innerHTML = "❌ エラー（再試行）";
+      }
     });
 
     function render(data) {
@@ -819,10 +894,10 @@
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
-          // ★ ダウンロードボタン（ダウンロード済みならスタイル変更）
+          // ★ ダウンロードボタン（DynamoDBのdownloadedカラムで判定）
           let downloadBtnHtml = "";
           if (!isNg && it.after_download_url) {
-            const isDownloaded = downloadedJobIds.has(it.job_id);
+            const isDownloaded = (it.downloaded === "○");
             if (isDownloaded) {
               downloadBtnHtml = `<span class="btn-download downloaded" data-job-id="${escapeHtml(it.job_id)}">✅ ダウンロード済み</span>`;
             } else {
@@ -846,6 +921,7 @@
               <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
               ${feedbackBadgeHtml(it.feedback)}
               ${printBadgeHtml(it.print)}
+              <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
             </div>
 
             <div class="card">
@@ -864,10 +940,6 @@
       const sinceIsoUtc = toUtcIso(elSinceJst.value, 0);
       const untilIsoUtc = toUtcIso(elUntilJst.value, 59);
       const limit = (elLimit.value || "200").trim();
-
-      if (!sinceIsoUtc && !untilIsoUtc) {
-        // 両方未指定の場合は全期間として扱う（パラメータを送らない）
-      }
 
       if (inflight) inflight.abort();
       inflight = new AbortController();
