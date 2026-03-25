@@ -77,14 +77,48 @@
       padding: 24px 20px 40px;
     }
 
-    /* ===== CONTROLS CARD ===== */
+    /* ===== CONTROLS CARD (collapsible) ===== */
     .controls {
       background: #fff;
       border: 1px solid var(--rose-100);
       border-radius: 1.5rem;
-      padding: 20px 24px;
       margin-bottom: 20px;
       box-shadow: 0 1px 8px rgba(244,63,94,0.06);
+      overflow: hidden;
+    }
+    .controls-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 16px 24px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--rose-700);
+    }
+    .controls-toggle:hover {
+      background: var(--rose-50);
+    }
+    .controls-toggle-icon {
+      font-size: 1.1rem;
+      transition: transform 0.3s ease;
+    }
+    .controls.open .controls-toggle-icon {
+      transform: rotate(180deg);
+    }
+    .controls-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 24px;
+    }
+    .controls.open .controls-body {
+      max-height: 1200px;
+      padding: 0 24px 20px;
     }
     .controls-row {
       display: flex;
@@ -211,7 +245,6 @@
       transform: scale(1.02);
       box-shadow: 0 2px 8px rgba(99,102,241,0.3);
     }
-    /* ★ ダウンロード済み状態 */
     .btn-download.downloaded {
       border-color: #86efac;
       background: #f0fdf4;
@@ -219,7 +252,6 @@
       cursor: default;
       pointer-events: none;
     }
-    /* ★ API送信中 */
     .btn-download.saving {
       border-color: #fbbf24;
       background: #fffbeb;
@@ -290,7 +322,7 @@
       color: var(--gray-800);
     }
 
-    /* ===== ITEM GRID ===== */
+    /* ===== ITEM GRID — Desktop ===== */
     .item {
       display: grid;
       grid-template-columns: 1fr 260px 1fr;
@@ -435,15 +467,77 @@
       color: var(--rose-600);
     }
 
-    /* ===== RESPONSIVE ===== */
+    /* ===== RESPONSIVE — Mobile horizontal layout ===== */
     @media (max-width: 900px) {
-      .item { grid-template-columns: 1fr; }
+      /* Item: horizontal scroll with images side by side + meta below */
+      .item {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      /* Images row: side by side */
+      .item-images-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .item-images-row .card {
+        padding: 10px;
+        border-radius: 1rem;
+      }
+      .item-images-row .card-label {
+        font-size: 0.6rem;
+        margin-bottom: 6px;
+      }
+
+      /* Meta card: compact horizontal badges */
+      .meta-card {
+        gap: 6px;
+      }
+      .meta-card .card-label {
+        font-size: 0.6rem;
+        margin-bottom: 4px;
+      }
+      .fav-text {
+        font-size: 0.9rem;
+        padding: 8px 10px;
+      }
+      .meta-badges-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .meta-badges-row .feedback-badge,
+      .meta-badges-row .ticket-badge {
+        font-size: 0.68rem;
+        padding: 4px 8px;
+      }
+      .jobid {
+        font-size: 0.6rem;
+        padding: 4px 8px;
+      }
+      .created {
+        font-size: 0.65rem;
+      }
+
       .controls-row { flex-direction: column; align-items: stretch; }
       .divider-v { display: none; }
     }
+
     @media (max-width: 500px) {
       .page-wrap { padding: 16px 12px 40px; }
-      .controls { padding: 16px; border-radius: 1.25rem; }
+      .controls { border-radius: 1.25rem; }
+      .item-images-row .card {
+        padding: 6px;
+      }
+      .item-images-row .card-label {
+        font-size: 0.55rem;
+      }
+      .btn-download {
+        font-size: 0.68rem;
+        padding: 6px 12px;
+      }
     }
   </style>
 </head>
@@ -461,103 +555,109 @@
 
   <div class="page-wrap">
 
-    <!-- Controls -->
-    <div class="controls">
-      <div class="controls-row">
-        <!-- Date range -->
-        <div>
-          <label class="field-label">表示期間（JST）</label>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input id="sinceJst" class="w-datetime" type="datetime-local" />
-            <span style="color:var(--gray-500);font-weight:700;">～</span>
-            <input id="untilJst" class="w-datetime" type="datetime-local" />
-          </div>
-          <div class="hint">開始日時のみ: ○○以降 / 終了日時のみ: ○○まで / 両方: 範囲検索 / 未指定: 全期間</div>
-        </div>
-
-        <!-- Preset buttons -->
-        <div>
-          <label class="field-label">クイック選択</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button id="presetToyotaLink" class="btn btn-secondary">トヨタ合成リンク実施期間</button>
-            <button id="presetToyotaFinal" class="btn btn-secondary">トヨタ合成最終週</button>
-            <button id="presetSakuraBetsuin" class="btn btn-secondary">サクラベツイン2026期間</button>
-          </div>
-        </div>
-
-        <div class="divider-v"></div>
-
-        <!-- Status filter buttons -->
-        <div>
-          <label class="field-label">表示種別</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button id="filterGenerated" class="btn btn-secondary">生成成功</button>
-            <button id="filterNg" class="btn btn-secondary">フィルタリングNG</button>
-          </div>
-          <div class="hint">APIに status を渡してサーバ側で絞り込みます</div>
-        </div>
-
-        <div class="divider-v"></div>
-
-        <!-- Limit -->
-        <div>
-          <label class="field-label">最大取得件数</label>
-          <input id="limit" class="w-limit" type="number" value="200" />
-          <div class="hint">多いほど重くなります</div>
-        </div>
-
-        <!-- Load button -->
-        <div style="margin-bottom:2px;">
-          <button id="load" class="btn btn-primary">読み込み</button>
-        </div>
-
-        <div class="divider-v"></div>
-
-        <!-- Filter -->
-        <div style="flex:1;min-width:200px;">
-          <label class="field-label">絞り込み（favorite / job_id）</label>
-          <input id="filter" class="w-filter" type="text" placeholder="例: パンケーキ / 3428ccf..." style="width:100%;" />
-          <div class="hint">読み込み済みデータを画面内で絞り込みます（通信しません）</div>
-        </div>
-
-        <div class="divider-v"></div>
-
-        <!-- Feedback filter -->
-        <div>
-          <label class="field-label">フィードバック絞り込み</label>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;gap:8px;">
-              <button id="fbWolfy" class="btn btn-secondary btn-fb" data-fb="wolfy">🐺 wolfy</button>
-              <button id="fbMyself" class="btn btn-secondary btn-fb" data-fb="myself">🙋 myself</button>
+    <!-- Controls (collapsible) -->
+    <div class="controls open" id="controlsPanel">
+      <button class="controls-toggle" id="controlsToggle">
+        <span>🔧 検索・フィルター設定</span>
+        <span class="controls-toggle-icon">▼</span>
+      </button>
+      <div class="controls-body">
+        <div class="controls-row">
+          <!-- Date range -->
+          <div>
+            <label class="field-label">表示期間（JST）</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input id="sinceJst" class="w-datetime" type="datetime-local" />
+              <span style="color:var(--gray-500);font-weight:700;">～</span>
+              <input id="untilJst" class="w-datetime" type="datetime-local" />
             </div>
-            <div style="display:flex;gap:8px;">
-              <button id="fbGood" class="btn btn-secondary btn-fb" data-fb="good">👍 good</button>
-              <button id="fbBad" class="btn btn-secondary btn-fb" data-fb="bad">👎 bad</button>
+            <div class="hint">開始日時のみ: ○○以降 / 終了日時のみ: ○○まで / 両方: 範囲検索 / 未指定: 全期間</div>
+          </div>
+
+          <!-- Preset buttons -->
+          <div>
+            <label class="field-label">クイック選択</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="presetToyotaLink" class="btn btn-secondary">トヨタ合成リンク実施期間</button>
+              <button id="presetToyotaFinal" class="btn btn-secondary">トヨタ合成最終週</button>
+              <button id="presetSakuraBetsuin" class="btn btn-secondary">サクラベツイン2026期間</button>
             </div>
           </div>
-          <div class="hint">AND検索。未選択なら全件表示（通信しません）</div>
-        </div>
 
-        <div class="divider-v"></div>
+          <div class="divider-v"></div>
 
-        <!-- Print filter -->
-        <div>
-          <label class="field-label">印刷状態絞り込み</label>
-          <div style="display:flex;gap:8px;">
-            <button id="filterPrinted" class="btn btn-secondary">🖨️ 印刷要望ありのみ</button>
+          <!-- Status filter buttons -->
+          <div>
+            <label class="field-label">表示種別</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="filterGenerated" class="btn btn-secondary">生成成功</button>
+              <button id="filterNg" class="btn btn-secondary">フィルタリングNG</button>
+            </div>
+            <div class="hint">APIに status を渡してサーバ側で絞り込みます</div>
           </div>
-          <div class="hint">未選択なら全件表示（通信しません）</div>
-        </div>
 
-        <div class="divider-v"></div>
+          <div class="divider-v"></div>
 
-        <!-- Download filter -->
-        <div>
-          <label class="field-label">ダウンロード状態絞り込み</label>
-          <div style="display:flex;gap:8px;">
-            <button id="filterDownloaded" class="btn btn-secondary">⬇️ 未DLのみ</button>
+          <!-- Limit -->
+          <div>
+            <label class="field-label">最大取得件数</label>
+            <input id="limit" class="w-limit" type="number" value="200" />
+            <div class="hint">多いほど重くなります</div>
           </div>
-          <div class="hint">未選択なら全件表示（通信しません）</div>
+
+          <!-- Load button -->
+          <div style="margin-bottom:2px;">
+            <button id="load" class="btn btn-primary">読み込み</button>
+          </div>
+
+          <div class="divider-v"></div>
+
+          <!-- Filter -->
+          <div style="flex:1;min-width:200px;">
+            <label class="field-label">絞り込み（favorite / job_id）</label>
+            <input id="filter" class="w-filter" type="text" placeholder="例: パンケーキ / 3428ccf..." style="width:100%;" />
+            <div class="hint">読み込み済みデータを画面内で絞り込みます（通信しません）</div>
+          </div>
+
+          <div class="divider-v"></div>
+
+          <!-- Feedback filter -->
+          <div>
+            <label class="field-label">フィードバック絞り込み</label>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;gap:8px;">
+                <button id="fbWolfy" class="btn btn-secondary btn-fb" data-fb="wolfy">🐺 wolfy</button>
+                <button id="fbMyself" class="btn btn-secondary btn-fb" data-fb="myself">🙋 myself</button>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button id="fbGood" class="btn btn-secondary btn-fb" data-fb="good">👍 good</button>
+                <button id="fbBad" class="btn btn-secondary btn-fb" data-fb="bad">👎 bad</button>
+              </div>
+            </div>
+            <div class="hint">AND検索。未選択なら全件表示（通信しません）</div>
+          </div>
+
+          <div class="divider-v"></div>
+
+          <!-- Print filter -->
+          <div>
+            <label class="field-label">印刷状態絞り込み</label>
+            <div style="display:flex;gap:8px;">
+              <button id="filterPrinted" class="btn btn-secondary">🖨️ 印刷要望ありのみ</button>
+            </div>
+            <div class="hint">未選択なら全件表示（通信しません）</div>
+          </div>
+
+          <div class="divider-v"></div>
+
+          <!-- Download filter -->
+          <div>
+            <label class="field-label">ダウンロード状態絞り込み</label>
+            <div style="display:flex;gap:8px;">
+              <button id="filterDownloaded" class="btn btn-secondary">⬇️ 未DLのみ</button>
+            </div>
+            <div class="hint">未選択なら全件表示（通信しません）</div>
+          </div>
         </div>
       </div>
     </div>
@@ -593,6 +693,13 @@
     const elFilterPrinted = document.getElementById("filterPrinted");
     const elFilterDownloaded = document.getElementById("filterDownloaded");
 
+    // Controls toggle
+    const controlsPanel = document.getElementById("controlsPanel");
+    const controlsToggle = document.getElementById("controlsToggle");
+    controlsToggle.addEventListener("click", () => {
+      controlsPanel.classList.toggle("open");
+    });
+
     let lastData      = null;
     let inflight      = null;
     let filterTimer   = null;
@@ -600,13 +707,10 @@
 
     let activeStatus = "GENERATED";
 
-    // feedback フィルタ状態（null = 未選択）
-    let fbWho  = null; // "wolfy" | "myself" | null
-    let fbEval = null; // "good"  | "bad"    | null
-    // 印刷済みフィルタ状態（null = 未選択、true = 印刷済みのみ）
-    let filterPrinted = null; // true | null
-    // ダウンロード状態フィルタ（null = 全件、true = 未DLのみ）
-    let filterNotDownloaded = null; // true | null
+    let fbWho  = null;
+    let fbEval = null;
+    let filterPrinted = null;
+    let filterNotDownloaded = null;
 
     const presetBtns = { toyotaLink: elToyotaLink, toyotaFinal: elToyotaFinal, sakuraBetsuin: elSakuraBetsuin };
 
@@ -648,19 +752,6 @@
       return utc.toISOString().replace(".000Z", "+00:00");
     }
 
-    function setPresetFromNow(minutesAgo) {
-      const jstNow = new Date(Date.now() + 9*60*60*1000);
-      const target = new Date(jstNow.getTime() - minutesAgo*60*1000);
-      const pad = n => String(n).padStart(2,"0");
-      elSinceJst.value = `${target.getUTCFullYear()}-${pad(target.getUTCMonth()+1)}-${pad(target.getUTCDate())}T${pad(target.getUTCHours())}:${pad(target.getUTCMinutes())}`;
-    }
-
-    function setPresetTodayMidnight() {
-      const jstNow = new Date(Date.now() + 9*60*60*1000);
-      const pad = n => String(n).padStart(2,"0");
-      elSinceJst.value = `${jstNow.getUTCFullYear()}-${pad(jstNow.getUTCMonth()+1)}-${pad(jstNow.getUTCDate())}T00:00`;
-    }
-
     function setPresetDate(year, month, day) {
       const pad = n => String(n).padStart(2,"0");
       elSinceJst.value = `${year}-${pad(month)}-${pad(day)}T00:00`;
@@ -676,7 +767,6 @@
       return (s ?? "").toString().trim().toLowerCase();
     }
 
-    // Feedback ボタンのトグル
     function updateFbButtons() {
       document.getElementById("fbWolfy").classList.toggle("active", fbWho === "wolfy");
       document.getElementById("fbMyself").classList.toggle("active", fbWho === "myself");
@@ -718,11 +808,9 @@
     });
 
     function matchFeedback(feedback) {
-      // どちらも未選択なら全件通す
       if (!fbWho && !fbEval) return true;
       if (!feedback) return false;
       const lower = feedback.toLowerCase();
-      // 選択されてる条件を両方満たす必要がある（AND）
       if (fbWho && !lower.startsWith(fbWho + "_")) return false;
       if (fbEval && !lower.endsWith("_" + fbEval)) return false;
       return true;
@@ -735,7 +823,6 @@
 
     function matchDownloaded(downloadedVal) {
       if (!filterNotDownloaded) return true;
-      // 未DLのみ表示 = downloaded が "○" でないもの
       return downloadedVal !== "○";
     }
 
@@ -763,7 +850,7 @@
 
     function feedbackBadgeHtml(feedback) {
       if (!feedback) {
-        return `<span class="feedback-badge none">💬 フィードバックなし</span>`;
+        return `<span class="feedback-badge none">💬 なし</span>`;
       }
       const lower = feedback.toLowerCase();
       if (lower === "good") {
@@ -776,24 +863,24 @@
     }
 
     function printBadgeHtml(printVal) {
-        if (printVal === "○") {
-            return `<span class="feedback-badge good">🖨️ 印刷要望あり</span>`;
-        }
-        return `<span class="feedback-badge none">🖨️ 印刷要望なし</span>`;
+      if (printVal === "○") {
+        return `<span class="feedback-badge good">🖨️ 印刷あり</span>`;
+      }
+      return `<span class="feedback-badge none">🖨️ なし</span>`;
     }
 
     function downloadedBadgeHtml(downloadedVal) {
       if (downloadedVal === "○") {
-        return `<span class="feedback-badge good">⬇️ ダウンロード済み</span>`;
+        return `<span class="feedback-badge good">⬇️ DL済</span>`;
       }
-      return `<span class="feedback-badge none">⬇️ 未ダウンロード</span>`;
+      return `<span class="feedback-badge none">⬇️ 未DL</span>`;
     }
 
     function ticketBadgeHtml(ticket) {
       if (ticket) {
-        return `<span class="ticket-badge">🎫 整理券 No. ${escapeHtml(ticket)}</span>`;
+        return `<span class="ticket-badge">🎫 No. ${escapeHtml(ticket)}</span>`;
       }
-      return `<span class="ticket-badge none">🎫 整理券番号なし</span>`;
+      return `<span class="ticket-badge none">🎫 なし</span>`;
     }
 
     function showLoading() {
@@ -804,7 +891,7 @@
         </div>`;
     }
 
-    // ★ ダウンロードボタンのクリックハンドラ（API経由でDynamoDBを更新）
+    // Download button handler
     document.addEventListener("click", async (e) => {
       const btn = e.target.closest(".btn-download");
       if (!btn || btn.classList.contains("downloaded") || btn.classList.contains("saving")) return;
@@ -812,7 +899,6 @@
       const jobId = btn.dataset.jobId;
       if (!jobId) return;
 
-      // 送信中の表示
       btn.classList.add("saving");
       btn.innerHTML = "⏳ 保存中...";
 
@@ -831,12 +917,10 @@
           return;
         }
 
-        // 成功 → ダウンロード済みに変更
         btn.classList.remove("saving");
         btn.classList.add("downloaded");
-        btn.innerHTML = "✅ ダウンロード済み";
+        btn.innerHTML = "✅ DL済";
 
-        // lastData内のアイテムも更新（フィルタ再適用時のため）
         if (lastData) {
           for (const day of (lastData.days || [])) {
             for (const it of (day.items || [])) {
@@ -847,10 +931,9 @@
           }
         }
 
-        // メタカード内のバッジも更新
         const badgeEl = document.querySelector(`[data-downloaded-badge="${jobId}"]`);
         if (badgeEl) {
-          badgeEl.outerHTML = `<span class="feedback-badge good" data-downloaded-badge="${escapeHtml(jobId)}">⬇️ ダウンロード済み</span>`;
+          badgeEl.outerHTML = `<span class="feedback-badge good" data-downloaded-badge="${escapeHtml(jobId)}">⬇️ DL済</span>`;
         }
 
       } catch (err) {
@@ -859,6 +942,10 @@
         btn.innerHTML = "❌ エラー（再試行）";
       }
     });
+
+    function isMobile() {
+      return window.innerWidth <= 900;
+    }
 
     function render(data) {
       root.innerHTML = "";
@@ -874,6 +961,7 @@
       }
 
       const isNg = (activeStatus === "VALIDATION_FAILED");
+      const mobile = isMobile();
 
       for (const day of (data.days || [])) {
         const dayDiv = document.createElement("div");
@@ -894,42 +982,71 @@
             ? `<img loading="lazy" src="${it.after_url}" alt="after">`
             : `<div class="no-image">${isNg ? "出力画像なし（NG判定）" : "after 画像なし"}</div>`;
 
-          // ★ ダウンロードボタン（DynamoDBのdownloadedカラムで判定）
           let downloadBtnHtml = "";
           if (!isNg && it.after_download_url) {
             const isDownloaded = (it.downloaded === "○");
             if (isDownloaded) {
-              downloadBtnHtml = `<span class="btn-download downloaded" data-job-id="${escapeHtml(it.job_id)}">✅ ダウンロード済み</span>`;
+              downloadBtnHtml = `<span class="btn-download downloaded" data-job-id="${escapeHtml(it.job_id)}">✅ DL済</span>`;
             } else {
-              downloadBtnHtml = `<a class="btn-download" href="${it.after_download_url}" download="${escapeHtml(it.job_id)}.png" data-job-id="${escapeHtml(it.job_id)}">⬇️ ダウンロード</a>`;
+              downloadBtnHtml = `<a class="btn-download" href="${it.after_download_url}" download="${escapeHtml(it.job_id)}.png" data-job-id="${escapeHtml(it.job_id)}">⬇️ DL</a>`;
             }
           }
 
           const item = document.createElement("div");
-          item.className = "item";
-          item.innerHTML = `
-            <div class="card">
-              <div class="card-label">${isNg ? "📸 Input Image（NG）" : "📸 Before（元画像）"}</div>
-              ${beforeHtml}
-            </div>
 
-            <div class="card meta-card">
-              <div class="card-label">✏️ Input（好きなもの）</div>
-              ${ticketBadgeHtml(it.ticket)}
-              <div class="jobid">${escapeHtml(it.job_id)}</div>
-              <div class="created">${escapeHtml(it.created_at)}</div>
-              <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
-              ${feedbackBadgeHtml(it.feedback)}
-              ${printBadgeHtml(it.print)}
-              <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
-            </div>
-
-            <div class="card">
-              <div class="card-label">${isNg ? "🚫 After（生成なし）" : "🎨 After（生成画像）"}</div>
-              ${afterHtml}
-              ${downloadBtnHtml}
-            </div>
-          `;
+          if (mobile) {
+            // Mobile: images side-by-side on top, meta below
+            item.className = "item";
+            item.innerHTML = `
+              <div class="item-images-row">
+                <div class="card">
+                  <div class="card-label">${isNg ? "📸 Input（NG）" : "📸 Before"}</div>
+                  ${beforeHtml}
+                </div>
+                <div class="card">
+                  <div class="card-label">${isNg ? "🚫 After（なし）" : "🎨 After"}</div>
+                  ${afterHtml}
+                  ${downloadBtnHtml}
+                </div>
+              </div>
+              <div class="card meta-card">
+                <div class="card-label">✏️ 好きなもの</div>
+                <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
+                <div class="meta-badges-row">
+                  ${ticketBadgeHtml(it.ticket)}
+                  ${feedbackBadgeHtml(it.feedback)}
+                  ${printBadgeHtml(it.print)}
+                  <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
+                </div>
+                <div class="jobid">${escapeHtml(it.job_id)}</div>
+                <div class="created">${escapeHtml(it.created_at)}</div>
+              </div>
+            `;
+          } else {
+            // Desktop: 3-column grid
+            item.className = "item";
+            item.innerHTML = `
+              <div class="card">
+                <div class="card-label">${isNg ? "📸 Input Image（NG）" : "📸 Before（元画像）"}</div>
+                ${beforeHtml}
+              </div>
+              <div class="card meta-card">
+                <div class="card-label">✏️ Input（好きなもの）</div>
+                ${ticketBadgeHtml(it.ticket)}
+                <div class="jobid">${escapeHtml(it.job_id)}</div>
+                <div class="created">${escapeHtml(it.created_at)}</div>
+                <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
+                ${feedbackBadgeHtml(it.feedback)}
+                ${printBadgeHtml(it.print)}
+                <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
+              </div>
+              <div class="card">
+                <div class="card-label">${isNg ? "🚫 After（生成なし）" : "🎨 After（生成画像）"}</div>
+                ${afterHtml}
+                ${downloadBtnHtml}
+              </div>
+            `;
+          }
           dayDiv.appendChild(item);
         }
         root.appendChild(dayDiv);
@@ -956,6 +1073,11 @@
 
       showLoading();
       elStatus.textContent = "読み込み中...";
+
+      // Auto-collapse controls on mobile after loading
+      if (isMobile()) {
+        controlsPanel.classList.remove("open");
+      }
 
       try {
         const res = await fetch(`${API_URL}?${params.toString()}`, {
@@ -1013,6 +1135,15 @@
     elFilterNg.addEventListener("click", () => {
       setActiveStatus("VALIDATION_FAILED");
       fetchData();
+    });
+
+    // Re-render on resize (to switch between mobile/desktop layout)
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (lastData) rerenderByFilter();
+      }, 200);
     });
 
     // Init
