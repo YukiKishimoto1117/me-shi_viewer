@@ -876,6 +876,9 @@
       const btn = e.target.closest(".btn-download");
       if (!btn || btn.classList.contains("downloaded") || btn.classList.contains("saving")) return;
 
+      // ★ これを追加：リンクのデフォルト動作を止める
+      e.preventDefault();
+
       const jobId = btn.dataset.jobId;
       if (!jobId) return;
 
@@ -901,6 +904,7 @@
         btn.classList.add("downloaded");
         btn.innerHTML = "✅ DL済";
 
+        // データ同期（既存コード）
         if (lastData) {
           for (const day of (lastData.days || [])) {
             for (const it of (day.items || [])) {
@@ -910,10 +914,20 @@
             }
           }
         }
-
         const badgeEl = document.querySelector(`[data-downloaded-badge="${jobId}"]`);
         if (badgeEl) {
-          badgeEl.outerHTML = `<span class="feedback-badge good" data-downloaded-badge="${escapeHtml(jobId)}">⬇️ DL済</span>`;
+          badgeEl.outerHTML = `<span class="feedback-badge good" data-downloaded-badge="${jobId}">⬇️ DL済</span>`;
+        }
+
+        // ★ PATCHが完了してから手動でダウンロードを開始
+        const downloadUrl = btn.getAttribute("href");
+        if (downloadUrl) {
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = btn.getAttribute("download") || "";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
         }
 
       } catch (err) {
