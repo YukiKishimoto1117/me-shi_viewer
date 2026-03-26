@@ -891,13 +891,16 @@
       const newItems = [];
       for (const day of (filtered.days || [])) {
         for (const it of (day.items || [])) {
-          if (!oldIds.has(it.job_id)) {
+          // Check if this item already exists in the DOM
+          const existsInDom = document.querySelector(`.item-wrapper[data-job-id="${it.job_id}"]`);
+          if (!existsInDom) {
             newItems.push({ date: day.date, item: it });
           }
         }
       }
 
       // 3) If there are new items, insert them into the DOM
+      console.log(`[auto-refresh] new items to add: ${newItems.length}`, newItems.map(x => x.item.job_id));
       if (newItems.length > 0) {
         const isNg = (activeStatus === "VALIDATION_FAILED");
 
@@ -1049,6 +1052,11 @@
 
         const oldData = lastData;
         lastData = newData;
+
+        // Debug: log counts
+        const oldCount = oldData ? (oldData.days || []).reduce((a, d) => a + d.items.length, 0) : 0;
+        const newCount = (newData.days || []).reduce((a, d) => a + d.items.length, 0);
+        console.log(`[auto-refresh] old: ${oldCount} items, new: ${newCount} items`);
 
         // Apply diff instead of full re-render
         applyDiff(oldData, newData);
