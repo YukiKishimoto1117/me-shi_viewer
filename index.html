@@ -1030,9 +1030,9 @@
               </div>
               <div class="item-meta-strip">
                 ${ticketBadgeHtml(it.ticket)}
-                ${feedbackBadgeHtml(it.feedback)}
-                ${printBadgeHtml(it.print)}
                 <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
+                ${printBadgeHtml(it.print)}
+                ${feedbackBadgeHtml(it.feedback)}
                 <span class="jobid">${escapeHtml(it.job_id)}</span>
                 <span class="created">${escapeHtml(it.created_at)}</span>
               </div>
@@ -1046,14 +1046,12 @@
                 ${beforeHtml}
               </div>
               <div class="card meta-card">
-                <div class="card-label">✏️ Input（好きなもの）</div>
+                <div class="card-label">✏️ Input</div>
                 ${ticketBadgeHtml(it.ticket)}
-                <div class="jobid">${escapeHtml(it.job_id)}</div>
-                <div class="created">${escapeHtml(it.created_at)}</div>
-                <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
-                ${feedbackBadgeHtml(it.feedback)}
-                ${printBadgeHtml(it.print)}
                 <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
+                <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
+                ${printBadgeHtml(it.print)}
+                ${feedbackBadgeHtml(it.feedback)}
               </div>
               <div class="card">
                 <div class="card-label">${isNg ? "🚫 After（生成なし）" : "🎨 After（生成画像）"}</div>
