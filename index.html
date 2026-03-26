@@ -823,11 +823,24 @@
       return map;
     }
 
-    // Apply diff: update DL badges + DL buttons, add new items, update counts
+    // Build a Map of job_id -> ticket from data
+    function getTicketMap(data) {
+      const map = new Map();
+      for (const day of (data.days || [])) {
+        for (const it of (day.items || [])) {
+          map.set(it.job_id, it.ticket || "");
+        }
+      }
+      return map;
+    }
+
+    // Apply diff: update DL badges + DL buttons + tickets, add new items, update counts
     function applyDiff(oldData, newData) {
       const filtered = applyFilter(newData, elFilter.value);
       const oldIds = getVisibleJobIds(oldData);
       const newDownloaded = getDownloadedMap(newData);
+      const oldTickets = getTicketMap(oldData);
+      const newTickets = getTicketMap(newData);
 
       // 1) Update downloaded state on existing DOM items
       for (const [jobId, dlState] of newDownloaded) {
@@ -856,6 +869,21 @@
             span.innerHTML = "✅ DL済";
             btnEl.replaceWith(span);
           }
+        }
+      }
+
+      // 1.5) Update ticket badges on existing DOM items
+      for (const [jobId, newTicket] of newTickets) {
+        if (!oldIds.has(jobId)) continue;
+        const oldTicket = oldTickets.get(jobId) || "";
+        if (newTicket === oldTicket) continue;
+
+        // Find the ticket badge inside this item's wrapper
+        const itemEl = document.querySelector(`.item-wrapper[data-job-id="${jobId}"]`);
+        if (!itemEl) continue;
+        const ticketEl = itemEl.querySelector(".ticket-badge");
+        if (ticketEl) {
+          ticketEl.outerHTML = ticketBadgeHtml(newTicket);
         }
       }
 
