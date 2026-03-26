@@ -592,7 +592,7 @@
         <span class="header-sub">before / input / after</span>
       </div>
       <!-- Auto-refresh toggle button -->
-      <button class="auto-refresh-btn" id="autoRefreshBtn" title="30秒ごとに自動更新">
+      <button class="auto-refresh-btn" id="autoRefreshBtn" title="15秒ごとに自動更新">
         <span class="refresh-dot"></span>
         <span id="autoRefreshLabel">自動更新 OFF</span>
       </button>
@@ -764,9 +764,9 @@
     let filterNotDownloaded = null;
 
     // ===== AUTO-REFRESH =====
-    let autoRefreshEnabled = false;
+    let autoRefreshEnabled = true;
     let autoRefreshTimer = null;
-    const AUTO_REFRESH_INTERVAL = 30000; // 30秒
+    const AUTO_REFRESH_INTERVAL = 15000; // 15秒
 
     function toggleAutoRefresh() {
       autoRefreshEnabled = !autoRefreshEnabled;
@@ -1470,7 +1470,18 @@
     // Init
     setPresetDate(2026, 3, 25);
     setActiveStatus("GENERATED");
-    fetchData();
+
+    // Default: auto-refresh ON
+    elAutoRefreshBtn.classList.add("active");
+    elAutoRefreshLabel.textContent = "自動更新 ON";
+
+    // Default: print filter ON
+    filterPrinted = true;
+    elFilterPrinted.classList.add("active");
+
+    fetchData().then(() => {
+      startAutoRefresh();
+    });
   </script>
 </body>
 </html>
