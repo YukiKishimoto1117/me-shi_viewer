@@ -834,13 +834,26 @@
       return map;
     }
 
-    // Apply diff: update DL badges + DL buttons + tickets, add new items, update counts
+    // Build a Map of job_id -> print from data
+    function getPrintMap(data) {
+      const map = new Map();
+      for (const day of (data.days || [])) {
+        for (const it of (day.items || [])) {
+          map.set(it.job_id, it.print || "");
+        }
+      }
+      return map;
+    }
+
+    // Apply diff: update DL badges + DL buttons + tickets + print, add new items, update counts
     function applyDiff(oldData, newData) {
       const filtered = applyFilter(newData, elFilter.value);
       const oldIds = getVisibleJobIds(oldData);
       const newDownloaded = getDownloadedMap(newData);
       const oldTickets = getTicketMap(oldData);
       const newTickets = getTicketMap(newData);
+      const oldPrints = getPrintMap(oldData);
+      const newPrints = getPrintMap(newData);
 
       // 1) Update downloaded state on existing DOM items
       for (const [jobId, dlState] of newDownloaded) {
@@ -884,6 +897,18 @@
         const ticketEl = itemEl.querySelector(".ticket-badge");
         if (ticketEl) {
           ticketEl.outerHTML = ticketBadgeHtml(newTicket);
+        }
+      }
+
+      // 1.6) Update print badges on existing DOM items
+      for (const [jobId, newPrint] of newPrints) {
+        if (!oldIds.has(jobId)) continue;
+        const oldPrint = oldPrints.get(jobId) || "";
+        if (newPrint === oldPrint) continue;
+
+        const printEl = document.querySelector(`[data-print-badge="${jobId}"]`);
+        if (printEl) {
+          printEl.outerHTML = printBadgeHtml(newPrint, jobId);
         }
       }
 
@@ -1001,7 +1026,7 @@
           ${ticketBadgeHtml(it.ticket)}
           <span data-downloaded-badge="${escapeHtml(it.job_id)}">${downloadedBadgeHtml(it.downloaded)}</span>
           <div class="fav-text">${escapeHtml(it.favorite_thing || "")}</div>
-          ${printBadgeHtml(it.print)}
+          ${printBadgeHtml(it.print, it.job_id)}
           ${feedbackBadgeHtml(it.feedback)}
         </div>
         <div class="card item-after">
@@ -1222,11 +1247,12 @@
       }
     }
 
-    function printBadgeHtml(printVal) {
+    function printBadgeHtml(printVal, jobId) {
+      const attr = jobId ? ` data-print-badge="${escapeHtml(jobId)}"` : "";
       if (printVal === "○") {
-        return `<span class="feedback-badge good">🖨️ 印刷要望あり</span>`;
+        return `<span class="feedback-badge good"${attr}>🖨️ 印刷要望あり</span>`;
       }
-      return `<span class="feedback-badge none">🖨️ なし</span>`;
+      return `<span class="feedback-badge none"${attr}>🖨️ なし</span>`;
     }
 
     function downloadedBadgeHtml(downloadedVal) {
