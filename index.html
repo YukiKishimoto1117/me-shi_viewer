@@ -799,11 +799,11 @@
 
     elAutoRefreshBtn.addEventListener("click", toggleAutoRefresh);
 
-    // Build a Set of all job_ids currently in lastData (after filter)
-    function getVisibleJobIds() {
+    // Build a Set of all job_ids from given data (after filter)
+    function getVisibleJobIds(data) {
       const ids = new Set();
-      if (!lastData) return ids;
-      const filtered = applyFilter(lastData, elFilter.value);
+      if (!data) return ids;
+      const filtered = applyFilter(data, elFilter.value);
       for (const day of (filtered.days || [])) {
         for (const it of (day.items || [])) {
           ids.add(it.job_id);
@@ -826,7 +826,7 @@
     // Apply diff: update DL badges + DL buttons, add new items, update counts
     function applyDiff(oldData, newData) {
       const filtered = applyFilter(newData, elFilter.value);
-      const oldIds = getVisibleJobIds();
+      const oldIds = getVisibleJobIds(oldData);
       const newDownloaded = getDownloadedMap(newData);
 
       // 1) Update downloaded state on existing DOM items
