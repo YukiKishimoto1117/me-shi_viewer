@@ -704,6 +704,17 @@
             </div>
             <div class="hint">未選択なら全件表示（通信しません）</div>
           </div>
+
+          <div class="divider-v"></div>
+
+          <!-- Sort by ticket -->
+          <div>
+            <label class="field-label">並び順</label>
+            <div style="display:flex;gap:8px;">
+              <button id="sortTicket" class="btn btn-secondary">🎫 整理券番号順</button>
+            </div>
+            <div class="hint">クリックで昇順↑・降順↓・取得順を切り替え（通信しません）</div>
+          </div>
         </div>
       </div>
     </div>
@@ -762,6 +773,7 @@
     let fbEval = null;
     let filterPrinted = null;
     let filterNotDownloaded = null;
+    let sortOrder = null; // null | "asc" | "desc"
 
     // ===== AUTO-REFRESH =====
     let autoRefreshEnabled = true;
@@ -1192,6 +1204,27 @@
       rerenderByFilter();
     });
 
+    const elSortTicket = document.getElementById("sortTicket");
+    function updateSortBtn() {
+      if (sortOrder === "asc") {
+        elSortTicket.textContent = "🎫 番号順 ↑";
+        elSortTicket.classList.add("active");
+      } else if (sortOrder === "desc") {
+        elSortTicket.textContent = "🎫 番号順 ↓";
+        elSortTicket.classList.add("active");
+      } else {
+        elSortTicket.textContent = "🎫 整理券番号順";
+        elSortTicket.classList.remove("active");
+      }
+    }
+    elSortTicket.addEventListener("click", () => {
+      if (sortOrder === null) sortOrder = "asc";
+      else if (sortOrder === "asc") sortOrder = "desc";
+      else sortOrder = null;
+      updateSortBtn();
+      rerenderByFilter();
+    });
+
     function matchFeedback(feedback) {
       if (!fbWho && !fbEval) return true;
       if (!feedback) return false;
@@ -1344,7 +1377,21 @@
     });
 
 
+    function applySort(data) {
+      if (!sortOrder || !data) return data;
+      const days = (data.days || []).map(day => {
+        const items = [...day.items].sort((a, b) => {
+          const ta = parseInt(a.ticket || "999999", 10);
+          const tb = parseInt(b.ticket || "999999", 10);
+          return sortOrder === "asc" ? ta - tb : tb - ta;
+        });
+        return { ...day, items };
+      });
+      return { ...data, days };
+    }
+
     function render(data) {
+      data = applySort(data);
       root.innerHTML = "";
       const total = data?.count ?? 0;
 
