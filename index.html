@@ -1522,10 +1522,6 @@
     elAutoRefreshBtn.classList.add("active");
     elAutoRefreshLabel.textContent = "自動更新 ON";
 
-    // Default: print filter ON
-    filterPrinted = true;
-    elFilterPrinted.classList.add("active");
-
     fetchData().then(() => {
       startAutoRefresh();
     });
